@@ -182,7 +182,7 @@ This means:
 
 ## 👨‍💻 Author
 
-**Salauddin Kader**
+**Salah Uddin Kader**
 - GitHub: [@salahuddingfx](https://github.com/salahuddingfx)
 
 ---
