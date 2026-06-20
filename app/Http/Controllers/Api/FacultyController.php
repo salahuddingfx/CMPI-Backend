@@ -16,4 +16,62 @@ class FacultyController extends Controller
     {
         return $faculty;
     }
+
+    public function store(\Illuminate\Http\Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'designation' => 'required|string',
+            'department' => 'required|string',
+            'qualification' => 'required|string',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string',
+            'specialization' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $faculty = Faculty::create($request->all());
+        return response()->json($faculty, 201);
+    }
+
+    public function update(\Illuminate\Http\Request $request, Faculty $faculty)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'designation' => 'required|string',
+            'department' => 'required|string',
+            'qualification' => 'required|string',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string',
+            'specialization' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $faculty->update($request->all());
+        return response()->json($faculty);
+    }
+
+    public function destroy(\Illuminate\Http\Request $request, Faculty $faculty)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+
+        $faculty->delete();
+        return response()->json(['message' => 'Faculty member deleted successfully']);
+    }
 }

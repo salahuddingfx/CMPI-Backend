@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admission;
+use App\Models\User;
+use App\Mail\AdmissionReceived;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 
 class AdmissionController extends Controller
 {
@@ -26,6 +30,12 @@ class AdmissionController extends Controller
 
         $admission = Admission::create($data);
 
+        try {
+            Mail::to($admission->email)->send(new AdmissionReceived($admission));
+        } catch (\Exception $e) {
+            // Don't fail the request if email fails
+        }
+
         return response()->json([
             'message' => 'Application submitted',
             'application_id' => $data['application_id'],
@@ -33,8 +43,58 @@ class AdmissionController extends Controller
         ], 201);
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        return Admission::all();
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+        return Admission::orderByDesc('created_at')->get();
+    }
+
+    public function updateStatus(Request $request, Admission $admission)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+
+        $request->validate([
+            'status' => 'required|string|in:Pending,Approved,Rejected',
+        ]);
+
+        $newStatus = $request->status;
+        $admission->status = $newStatus;
+        $admission->save();
+
+        if (strtolower($newStatus) === 'approved') {
+            $userExists = User::where('email', $admission->email)->exists();
+            if (!$userExists) {
+                $year = date('Y');
+                $studentId = 'CMPI-' . $year . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                while (User::where('student_id', $studentId)->exists()) {
+                    $studentId = 'CMPI-' . $year . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+                }
+
+                User::create([
+                    'name' => $admission->name,
+                    'email' => $admission->email,
+                    'password' => Hash::make('student123'),
+                    'department' => $admission->department,
+                    'student_id' => $studentId,
+                    'semester' => '1st',
+                    'session' => $year . '-' . ($year + 1),
+                    'phone' => $admission->phone,
+                    'guardian' => $admission->father_name . ' (Father)',
+                    'blood_group' => $admission->blood_group ?? '-',
+                    'address' => $admission->address,
+                    'admission_date' => now(),
+                    'role' => 'student',
+                ]);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Admission status updated successfully',
+            'admission' => $admission,
+        ]);
     }
 }
