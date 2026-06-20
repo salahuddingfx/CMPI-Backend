@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\InstituteResultController;
 use App\Http\Controllers\Api\SocialLinkController;
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register']);
 
 Route::get('/institute', [InstituteController::class, 'index']);
 

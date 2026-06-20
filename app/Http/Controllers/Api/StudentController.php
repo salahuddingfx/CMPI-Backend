@@ -130,6 +130,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'admission_date' => 'nullable|date',
             'role' => 'required|string|in:student,admin',
+            'status' => 'nullable|string|in:pending,active,suspended',
             'avatar' => 'nullable|string',
         ]);
 
@@ -164,6 +165,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'admission_date' => 'nullable|date',
             'role' => 'required|string|in:student,admin',
+            'status' => 'nullable|string|in:pending,active,suspended',
             'avatar' => 'nullable|string',
         ]);
 

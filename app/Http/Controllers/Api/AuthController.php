@@ -46,4 +46,44 @@ class AuthController extends Controller
     {
         return response()->json($request->user());
     }
+
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:6',
+            'department' => 'nullable|string',
+            'student_id' => 'nullable|string|unique:users,student_id',
+            'semester' => 'nullable|string',
+            'session' => 'nullable|string',
+            'phone' => 'nullable|string',
+            'guardian' => 'nullable|string',
+            'blood_group' => 'nullable|string',
+            'address' => 'nullable|string',
+            'admission_date' => 'nullable|date',
+        ]);
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+            'department' => $request->department,
+            'student_id' => $request->student_id,
+            'semester' => $request->semester ?? '1st',
+            'session' => $request->session,
+            'phone' => $request->phone,
+            'guardian' => $request->guardian,
+            'blood_group' => $request->blood_group,
+            'address' => $request->address,
+            'admission_date' => $request->admission_date,
+            'role' => 'student',
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Registration successful! Your account is pending admin approval.',
+            'user' => $user
+        ], 201);
+    }
 }
