@@ -40,6 +40,8 @@ Route::get('/faculty/{faculty}', [FacultyController::class, 'show']);
 Route::get('/search', SearchController::class);
 
 Route::post('/admissions', [AdmissionController::class, 'store']);
+Route::post('/admissions/track', [AdmissionController::class, 'track']);
+Route::get('/admissions/download-form', [AdmissionController::class, 'downloadForm']);
 
 Route::get('/feedbacks', [FeedbackController::class, 'index']);
 Route::post('/feedbacks', [FeedbackController::class, 'store']);
