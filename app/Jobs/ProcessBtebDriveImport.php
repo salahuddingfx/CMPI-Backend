@@ -49,106 +49,67 @@ class ProcessBtebDriveImport implements ShouldQueue
 
             // Resume support: skip already processed files
             $processedIds = $this->importJob->error_log['processed_file_ids'] ?? [];
-            $fileIds = array_values(array_filter($fileIds, fn($id) => !in_array($id, $processedIds)));
-            $totalFiles = count($processedIds) + count($fileIds);
+            $remainingIds = array_values(array_filter($fileIds, fn($id) => !in_array($id, $processedIds)));
+            $totalFiles = count($processedIds) + count($remainingIds);
             $this->importJob->update(['total_files' => $totalFiles]);
 
-            // Detect holding year from folder name if not provided
+            // Detect holding year
             $holdingYear = $this->holdingYear ?? $this->detectHoldingYearFromUrl($this->driveUrl) ?? date('Y');
 
+            // PHASE 1: Parallel download all PDFs to temp directory
+            $tmpDir = storage_path('app/bteb_tmp_' . $this->importJob->id);
+            if (!is_dir($tmpDir)) mkdir($tmpDir, 0755, true);
+
+            $this->importJob->update(['error_log' => ['phase' => 'downloading', 'processed_file_ids' => $processedIds]]);
+            $downloaded = $this->downloadParallel($remainingIds, $tmpDir, $fileFolders);
+
+            // PHASE 2: Process each PDF locally (no network = fast)
             $errors = $this->importJob->error_log['errors'] ?? [];
             $pdfParser = new Parser();
             $processedCount = count($processedIds);
             $totalSaved = $this->importJob->total_results ?? 0;
 
-            foreach ($fileIds as $fileId) {
-                    $fileName = $fileId;
-                    try {
-                        $dl = $this->downloadDriveFile($fileId);
-                        if ($dl === null) {
-                            $errors[] = "Failed to download file ID: {$fileId}";
-                            continue;
+            foreach ($downloaded as $fileId => $filePath) {
+                $fileName = basename($filePath);
+                try {
+                    $isRescrutiny = $this->isRescrutinyFile($fileName) || $this->isRescrutinyFolder($fileFolders[$fileId] ?? '');
+
+                    $meta = $this->parseFilenameForMetadata($fileName);
+                    $semester = $this->semester ?? $meta['semester'] ?? '1st';
+                    $regulation = $this->regulation ?? $meta['regulation'] ?? '2022';
+
+                    $pdf = $pdfParser->parseFile($filePath);
+                    $lastDetectedDept = "Computer Science & Technology";
+
+                    $fileResults = [];
+                    foreach ($pdf->getPages() as $page) {
+                        $pageText = $page->getText();
+                        $pageResults = $this->parsePdfText($pageText, $semester, $regulation, $holdingYear, $lastDetectedDept, $isRescrutiny);
+                        if (!empty($pageResults)) {
+                            $fileResults = array_merge($fileResults, $pageResults);
                         }
-                        $pdfContent = $dl['content'];
-                        $fileName = $dl['filename'];
-                        if (strpos($pdfContent, '%PDF') !== 0) {
-                            $errors[] = "Not a valid PDF: {$fileName}";
-                            continue;
-                        }
-
-                        $isRescrutiny = $this->isRescrutinyFile($fileName) || $this->isRescrutinyFolder($fileFolders[$fileId] ?? '');
-
-                        // Auto-detect semester & regulation from filename
-                        $meta = $this->parseFilenameForMetadata($fileName);
-                        $semester = $this->semester ?? $meta['semester'] ?? '1st';
-                        $regulation = $this->regulation ?? $meta['regulation'] ?? '2022';
-
-                        $pdf = $pdfParser->parseContent($pdfContent);
-                        $lastDetectedDept = "Computer Science & Technology";
-
-                        $fileResults = [];
-                        foreach ($pdf->getPages() as $page) {
-                            $pageText = $page->getText();
-                            $pageResults = $this->parsePdfText(
-                                $pageText,
-                                $semester,
-                                $regulation,
-                                $holdingYear,
-                                $lastDetectedDept,
-                                $isRescrutiny
-                            );
-                            if (!empty($pageResults)) {
-                                $fileResults = array_merge($fileResults, $pageResults);
-                            }
-                        }
-
-                        if (!empty($fileResults)) {
-                            $savedCount = 0;
-                            DB::beginTransaction();
-                            try {
-                                foreach ($fileResults as $result) {
-                                    BtebResult::updateOrCreate(
-                                        [
-                                            'roll' => $result['roll'],
-                                            'semester' => $result['semester'],
-                                            'regulation' => $result['regulation'],
-                                        ],
-                                        [
-                                            'center_code' => $result['center_code'] ?? null,
-                                            'institute_name' => $result['institute_name'] ?? null,
-                                            'department' => $result['department'],
-                                            'holding_year' => $result['holding_year'],
-                                            'gpa' => $result['gpa'],
-                                            'status' => $result['status'],
-                                            'referred_subjects' => $result['referred_subjects'],
-                                            'raw_text' => $result['raw_text'],
-                                            'exam_type' => $result['exam_type'] ?? 'regular',
-                                        ]
-                                    );
-                                    $savedCount++;
-                                }
-                                DB::commit();
-                                $totalSaved += $savedCount;
-                            } catch (\Exception $e) {
-                                DB::rollBack();
-                                $errors[] = "DB error for {$fileName}: " . $e->getMessage();
-                            }
-                        }
-
-                        unset($fileResults, $pdf, $pdfContent);
-                    } catch (\Throwable $e) {
-                        $errors[] = "Error processing {$fileName}: " . $e->getMessage();
                     }
 
-                    $processedCount++;
-                    // Save progress after every file for resume support
-                    $processedIds[] = $fileId;
-                    $this->importJob->update([
-                        'processed_files' => $processedCount,
-                        'total_results' => $totalSaved,
-                        'error_log' => ['errors' => array_slice($errors, -50), 'processed_file_ids' => $processedIds],
-                    ]);
+                    if (!empty($fileResults)) {
+                        $totalSaved += $this->bulkSaveResults($fileResults);
+                    }
+
+                    unset($fileResults, $pdf);
+                } catch (\Throwable $e) {
+                    $errors[] = "Error processing {$fileName}: " . $e->getMessage();
+                }
+
+                $processedCount++;
+                $processedIds[] = $fileId;
+                $this->importJob->update([
+                    'processed_files' => $processedCount,
+                    'total_results' => $totalSaved,
+                    'error_log' => ['errors' => array_slice($errors, -50), 'processed_file_ids' => $processedIds],
+                ]);
             }
+
+            // Cleanup temp dir
+            $this->cleanupDir($tmpDir);
 
             $this->importJob->update([
                 'status' => 'completed',
@@ -163,6 +124,98 @@ class ProcessBtebDriveImport implements ShouldQueue
                 'error_log' => ['message' => $e->getMessage()],
             ]);
         }
+    }
+
+    private function downloadParallel(array $fileIds, string $tmpDir, array $fileFolders): array
+    {
+        $downloaded = [];
+        $batchSize = 10;
+        $chunks = array_chunk($fileIds, $batchSize);
+
+        foreach ($chunks as $chunkIndex => $chunk) {
+            $multi = curl_multi_init();
+            $handles = [];
+
+            foreach ($chunk as $fileId) {
+                $tmpFile = $tmpDir . '/' . $fileId . '.pdf';
+                $ch = curl_init();
+                curl_setopt_array($ch, [
+                    CURLOPT_URL => "https://drive.google.com/uc?export=download&id={$fileId}&confirm=no_antivirus",
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_TIMEOUT => 120,
+                    CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                ]);
+                $handles[$fileId] = ['curl' => $ch, 'tmpFile' => $tmpFile];
+                curl_multi_add_handle($multi, $ch);
+            }
+
+            do {
+                $status = curl_multi_exec($multi, $active);
+                if ($active) curl_multi_select($multi, 1);
+            } while ($active && $status === CURLM_OK);
+
+            foreach ($handles as $fileId => $info) {
+                $body = curl_multi_getcontent($info['curl']);
+                if ($body && strpos($body, '%PDF') === 0) {
+                    file_put_contents($info['tmpFile'], $body);
+                    $downloaded[$fileId] = $info['tmpFile'];
+                }
+                curl_multi_remove_handle($multi, $info['curl']);
+                curl_close($info['curl']);
+            }
+            curl_multi_close($multi);
+        }
+
+        return $downloaded;
+    }
+
+    private function bulkSaveResults(array $results): int
+    {
+        $saved = 0;
+        $chunks = array_chunk($results, 500);
+
+        foreach ($chunks as $chunk) {
+            DB::beginTransaction();
+            try {
+                foreach ($chunk as $result) {
+                    BtebResult::updateOrCreate(
+                        [
+                            'roll' => $result['roll'],
+                            'semester' => $result['semester'],
+                            'regulation' => $result['regulation'],
+                        ],
+                        [
+                            'center_code' => $result['center_code'] ?? null,
+                            'institute_name' => $result['institute_name'] ?? null,
+                            'department' => $result['department'],
+                            'holding_year' => $result['holding_year'],
+                            'gpa' => $result['gpa'],
+                            'status' => $result['status'],
+                            'referred_subjects' => $result['referred_subjects'],
+                            'raw_text' => $result['raw_text'],
+                            'exam_type' => $result['exam_type'] ?? 'regular',
+                        ]
+                    );
+                    $saved++;
+                }
+                DB::commit();
+            } catch (\Exception $e) {
+                DB::rollBack();
+            }
+        }
+
+        return $saved;
+    }
+
+    private function cleanupDir(string $dir): void
+    {
+        if (!is_dir($dir)) return;
+        $files = glob($dir . '/*');
+        foreach ($files as $file) {
+            if (is_file($file)) unlink($file);
+        }
+        rmdir($dir);
     }
 
     private function downloadDriveFile(string $fileId): ?array
