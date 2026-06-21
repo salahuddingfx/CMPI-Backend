@@ -282,6 +282,34 @@ class InstituteResultController extends Controller
         return response()->json(['result' => $result]);
     }
 
+    public function update(Request $request, $id)
+    {
+        $user = $request->user();
+        if ($user->role !== 'admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'roll' => 'sometimes|string|size:6|digits:6',
+            'semester' => 'sometimes|string',
+            'academic_year' => 'sometimes|string',
+            'status' => 'sometimes|in:Passed,Referred',
+            'referred_subjects' => 'nullable|array',
+            'referred_subjects.*' => 'string',
+        ]);
+
+        $result = InstituteResult::findOrFail($id);
+
+        $data = $request->only(['roll', 'semester', 'academic_year', 'status']);
+        if ($request->has('referred_subjects')) {
+            $data['referred_subjects'] = $request->referred_subjects;
+        }
+
+        $result->update($data);
+
+        return response()->json(['result' => $result]);
+    }
+
     public function destroy(Request $request, $id)
     {
         $user = $request->user();
