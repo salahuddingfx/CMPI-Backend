@@ -78,6 +78,12 @@ class AuthController extends Controller
             'status' => 'pending',
         ]);
 
+        \App\Models\Notification::create([
+            'title' => 'New Registration Request',
+            'description' => "Student {$user->name} requested portal registration approval.",
+            'type' => 'info',
+        ]);
+
         return response()->json([
             'message' => 'Registration successful! Your account is pending admin approval.',
             'user' => $user
