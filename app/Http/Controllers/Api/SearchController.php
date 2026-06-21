@@ -14,9 +14,10 @@ class SearchController extends Controller
 {
     public function __invoke(Request $request)
     {
-        $q = $request->input('q', '');
+        $q = strip_tags($request->input('q', ''));
+        $q = preg_replace('/[^\w\s\-]/u', '', $q);
 
-        if (strlen($q) < 2) {
+        if (mb_strlen($q) < 2) {
             return response()->json([
                 'departments' => [],
                 'faculty' => [],
