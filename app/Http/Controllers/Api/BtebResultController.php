@@ -71,7 +71,6 @@ class BtebResultController extends Controller
                         'roll' => $result['roll'],
                         'semester' => $result['semester'],
                         'regulation' => $result['regulation'],
-                        'exam_type' => $result['exam_type'] ?? 'regular',
                     ],
                     [
                         'center_code' => $result['center_code'] ?? null,
@@ -82,6 +81,7 @@ class BtebResultController extends Controller
                         'status' => $result['status'],
                         'referred_subjects' => $result['referred_subjects'] ?? null,
                         'raw_text' => $result['raw_text'] ?? null,
+                        'exam_type' => $result['exam_type'] ?? 'regular',
                     ]
                 );
             }
@@ -453,7 +453,6 @@ class BtebResultController extends Controller
                         'roll' => $result['roll'],
                         'semester' => $result['semester'],
                         'regulation' => $result['regulation'],
-                        'exam_type' => $result['exam_type'] ?? 'regular',
                     ],
                     [
                         'center_code' => $result['center_code'] ?? null,
@@ -464,6 +463,7 @@ class BtebResultController extends Controller
                         'status' => $result['status'],
                         'referred_subjects' => $result['referred_subjects'],
                         'raw_text' => $result['raw_text'],
+                        'exam_type' => $result['exam_type'] ?? 'regular',
                     ]
                 );
             }
