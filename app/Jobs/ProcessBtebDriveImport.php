@@ -52,10 +52,10 @@ class ProcessBtebDriveImport implements ShouldQueue
             // Detect holding year from folder name if not provided
             $holdingYear = $this->holdingYear ?? $this->detectHoldingYearFromUrl($this->driveUrl) ?? date('Y');
 
-            $allResults = [];
             $errors = [];
             $pdfParser = new Parser();
             $processedCount = 0;
+            $totalSaved = 0;
 
             foreach ($fileIds as $fileId) {
                     $fileName = $fileId;
@@ -82,6 +82,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                         $pdf = $pdfParser->parseContent($pdfContent);
                         $lastDetectedDept = "Computer Science & Technology";
 
+                        $fileResults = [];
                         foreach ($pdf->getPages() as $page) {
                             $pageText = $page->getText();
                             $pageResults = $this->parsePdfText(
@@ -93,9 +94,44 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 $isRescrutiny
                             );
                             if (!empty($pageResults)) {
-                                $allResults = array_merge($allResults, $pageResults);
+                                $fileResults = array_merge($fileResults, $pageResults);
                             }
                         }
+
+                        if (!empty($fileResults)) {
+                            $savedCount = 0;
+                            DB::beginTransaction();
+                            try {
+                                foreach ($fileResults as $result) {
+                                    BtebResult::updateOrCreate(
+                                        [
+                                            'roll' => $result['roll'],
+                                            'semester' => $result['semester'],
+                                            'regulation' => $result['regulation'],
+                                        ],
+                                        [
+                                            'center_code' => $result['center_code'] ?? null,
+                                            'institute_name' => $result['institute_name'] ?? null,
+                                            'department' => $result['department'],
+                                            'holding_year' => $result['holding_year'],
+                                            'gpa' => $result['gpa'],
+                                            'status' => $result['status'],
+                                            'referred_subjects' => $result['referred_subjects'],
+                                            'raw_text' => $result['raw_text'],
+                                            'exam_type' => $result['exam_type'] ?? 'regular',
+                                        ]
+                                    );
+                                    $savedCount++;
+                                }
+                                DB::commit();
+                                $totalSaved += $savedCount;
+                            } catch (\Exception $e) {
+                                DB::rollBack();
+                                $errors[] = "DB error for {$fileName}: " . $e->getMessage();
+                            }
+                        }
+
+                        unset($fileResults, $pdf, $pdfContent);
                     } catch (\Throwable $e) {
                         $errors[] = "Error processing {$fileName}: " . $e->getMessage();
                     }
@@ -104,44 +140,14 @@ class ProcessBtebDriveImport implements ShouldQueue
                     if ($processedCount % 5 === 0 || $processedCount === count($fileIds)) {
                         $this->importJob->update([
                             'processed_files' => $processedCount,
-                            'total_results' => count($allResults),
+                            'total_results' => $totalSaved,
                         ]);
                     }
             }
 
-            if (!empty($allResults)) {
-                DB::beginTransaction();
-                try {
-                    foreach ($allResults as $result) {
-                        BtebResult::updateOrCreate(
-                            [
-                                'roll' => $result['roll'],
-                                'semester' => $result['semester'],
-                                'regulation' => $result['regulation'],
-                            ],
-                            [
-                                'center_code' => $result['center_code'] ?? null,
-                                'institute_name' => $result['institute_name'] ?? null,
-                                'department' => $result['department'],
-                                'holding_year' => $result['holding_year'],
-                                'gpa' => $result['gpa'],
-                                'status' => $result['status'],
-                                'referred_subjects' => $result['referred_subjects'],
-                                'raw_text' => $result['raw_text'],
-                                'exam_type' => $result['exam_type'] ?? 'regular',
-                            ]
-                        );
-                    }
-                    DB::commit();
-                } catch (\Exception $e) {
-                    DB::rollBack();
-                    $errors[] = "Database error: " . $e->getMessage();
-                }
-            }
-
             $this->importJob->update([
                 'status' => 'completed',
-                'total_results' => count($allResults),
+                'total_results' => $totalSaved,
                 'error_log' => !empty($errors) ? $errors : null,
             ]);
 

@@ -20,6 +20,7 @@ echo "Drive URL: " . $job->drive_url . PHP_EOL;
 echo "Starting import..." . PHP_EOL;
 set_time_limit(0);
 ini_set('max_execution_time', 0);
+ini_set('memory_limit', '2048M');
 
 try {
     $import = new \App\Jobs\ProcessBtebDriveImport($job, $job->drive_url, $job->semester, $job->regulation, $job->holding_year);
