@@ -18,7 +18,7 @@ class ProcessBtebDriveImport implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 900;
+    public int $timeout = 3600;
     public int $tries = 3;
 
     public function __construct(
