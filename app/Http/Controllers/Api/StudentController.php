@@ -220,7 +220,7 @@ class StudentController extends Controller
     public function bulkImport(Request $request)
     {
         if ($request->user()->role !== 'admin' || (!empty($request->user()->sub_role) && $request->user()->sub_role !== 'super_admin')) {
-            return response()->json(['message' => 'Unauthorized.'], 403);
+            return response()->json(['message' => 'Unauthorized.'], 403);   
         }
 
         $request->validate([
