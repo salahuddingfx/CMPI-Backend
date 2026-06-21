@@ -288,12 +288,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Subjects (from BTEB Regulation 2022 booklists)
-        $subjectsJson = file_get_contents(base_path('../subjects.json'));
-        $subjects = json_decode($subjectsJson, true);
-        if (is_array($subjects)) {
-            foreach ($subjects as $subject) {
-                Subject::create($subject);
-            }
-        }
+        $this->call(BtebSubjectSeeder::class);
     }
 }
