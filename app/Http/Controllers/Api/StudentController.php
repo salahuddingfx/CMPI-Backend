@@ -121,16 +121,16 @@ class StudentController extends Controller
 
     public function allUsers(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        if ($request->user()->role !== 'admin' || (!empty($request->user()->sub_role) && $request->user()->sub_role !== 'super_admin')) {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
         }
         return User::all();
     }
 
     public function storeUser(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        if ($request->user()->role !== 'admin' || (!empty($request->user()->sub_role) && $request->user()->sub_role !== 'super_admin')) {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
         }
 
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
@@ -147,6 +147,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'admission_date' => 'nullable|date',
             'role' => 'required|string|in:student,admin',
+            'sub_role' => 'nullable|string|in:super_admin,academic_editor,content_manager,admission_officer,accountant',
             'status' => 'nullable|string|in:pending,active,suspended',
             'avatar' => 'nullable|string',
         ]);
@@ -164,8 +165,8 @@ class StudentController extends Controller
 
     public function updateUser(Request $request, User $user)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        if ($request->user()->role !== 'admin' || (!empty($request->user()->sub_role) && $request->user()->sub_role !== 'super_admin')) {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
         }
 
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
@@ -182,6 +183,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'admission_date' => 'nullable|date',
             'role' => 'required|string|in:student,admin',
+            'sub_role' => 'nullable|string|in:super_admin,academic_editor,content_manager,admission_officer,accountant',
             'status' => 'nullable|string|in:pending,active,suspended',
             'avatar' => 'nullable|string',
         ]);
@@ -203,8 +205,8 @@ class StudentController extends Controller
 
     public function destroyUser(Request $request, User $user)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        if ($request->user()->role !== 'admin' || (!empty($request->user()->sub_role) && $request->user()->sub_role !== 'super_admin')) {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
         }
 
         if ($user->id === $request->user()->id) {
@@ -217,7 +219,7 @@ class StudentController extends Controller
 
     public function bulkImport(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
+        if ($request->user()->role !== 'admin' || (!empty($request->user()->sub_role) && $request->user()->sub_role !== 'super_admin')) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
