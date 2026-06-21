@@ -87,7 +87,12 @@ class FileUploadController extends Controller
         ]);
 
         $path = $request->input('path');
-        $fullPath = public_path($path);
+        $realPublic = realpath(public_path());
+        $fullPath = realpath(public_path($path));
+
+        if ($fullPath === false || !str_starts_with($fullPath, $realPublic)) {
+            return response()->json(['message' => 'Invalid path'], 400);
+        }
 
         if (file_exists($fullPath)) {
             unlink($fullPath);
