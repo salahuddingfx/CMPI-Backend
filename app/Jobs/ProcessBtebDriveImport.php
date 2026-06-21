@@ -538,8 +538,8 @@ class ProcessBtebDriveImport implements ShouldQueue
 
         $sections = [];
         for ($i = 0; $i < count($codeMatches); $i++) {
-            $centerCode = $codeMatches[$i][1];
-            $instituteName = trim($codeMatches[$i][2] ?? '');
+            $centerCode = $codeMatches[$i][1][0] ?? null;
+            $instituteName = trim($codeMatches[$i][2][0] ?? '');
             $startOffset = $codeMatches[$i][0][1];
 
             // Section ends at the next center code or end of text
