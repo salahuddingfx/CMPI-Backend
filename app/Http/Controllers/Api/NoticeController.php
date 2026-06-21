@@ -21,8 +21,8 @@ class NoticeController extends Controller
 
     public function store(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        if (!$request->user()->hasPermission('notices')) {
+            return response()->json(['message' => 'Unauthorized. Insufficient permissions for notices.'], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -45,8 +45,8 @@ class NoticeController extends Controller
 
     public function update(Request $request, Notice $notice)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        if (!$request->user()->hasPermission('notices')) {
+            return response()->json(['message' => 'Unauthorized. Insufficient permissions for notices.'], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -69,8 +69,8 @@ class NoticeController extends Controller
 
     public function destroy(Request $request, Notice $notice)
     {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        if (!$request->user()->hasPermission('notices')) {
+            return response()->json(['message' => 'Unauthorized. Insufficient permissions for notices.'], 403);
         }
 
         $notice->delete();
