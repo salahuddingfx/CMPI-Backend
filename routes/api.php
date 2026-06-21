@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\BtebResultController;
 use App\Http\Controllers\Api\InstituteResultController;
 use App\Http\Controllers\Api\ClassRoutineController;
 use App\Http\Controllers\Api\SocialLinkController;
+use App\Http\Controllers\Api\HeroSlideController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -53,6 +54,8 @@ Route::get('/bteb-results/search', [BtebResultController::class, 'search']);
 Route::get('/institute-results/search', [InstituteResultController::class, 'search']);
 
 Route::get('/social-links', [SocialLinkController::class, 'index']);
+
+Route::get('/hero-slides', [HeroSlideController::class, 'index']);
 
 Route::get('/class-routines', [ClassRoutineController::class, 'index']);
 Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);
@@ -140,4 +143,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/social-links', [SocialLinkController::class, 'store']);
     Route::put('/social-links/{socialLink}', [SocialLinkController::class, 'update']);
     Route::delete('/social-links/{socialLink}', [SocialLinkController::class, 'destroy']);
+
+    // Hero slides
+    Route::get('/hero-slides/all', [HeroSlideController::class, 'index']);
+    Route::post('/hero-slides', [HeroSlideController::class, 'store']);
+    Route::put('/hero-slides/{heroSlide}', [HeroSlideController::class, 'update']);
+    Route::delete('/hero-slides/{heroSlide}', [HeroSlideController::class, 'destroy']);
 });
