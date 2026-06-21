@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\InstituteResultController;
 use App\Http\Controllers\Api\ClassRoutineController;
 use App\Http\Controllers\Api\SocialLinkController;
 use App\Http\Controllers\Api\HeroSlideController;
+use App\Http\Controllers\Api\SubjectController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -56,6 +57,8 @@ Route::get('/institute-results/search', [InstituteResultController::class, 'sear
 Route::get('/social-links', [SocialLinkController::class, 'index']);
 
 Route::get('/hero-slides', [HeroSlideController::class, 'index']);
+
+Route::get('/subjects', [SubjectController::class, 'index']);
 
 Route::get('/class-routines', [ClassRoutineController::class, 'index']);
 Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);

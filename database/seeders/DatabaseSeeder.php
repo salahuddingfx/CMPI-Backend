@@ -23,6 +23,7 @@ use App\Models\HeroSlide;
 use App\Models\SocialLink;
 use App\Models\Admission;
 use App\Models\ClassRoutine;
+use App\Models\Subject;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
@@ -285,5 +286,14 @@ class DatabaseSeeder extends Seeder
             'pdf_path' => '/routines/eee-2nd-summer-2026.pdf',
             'original_name' => 'EEE_2nd_Semester_Routine_2026.pdf',
         ]);
+
+        // Subjects (from BTEB Regulation 2022 booklists)
+        $subjectsJson = file_get_contents(base_path('../subjects.json'));
+        $subjects = json_decode($subjectsJson, true);
+        if (is_array($subjects)) {
+            foreach ($subjects as $subject) {
+                Subject::create($subject);
+            }
+        }
     }
 }
