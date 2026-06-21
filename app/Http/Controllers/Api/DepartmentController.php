@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\Subject;
 
 class DepartmentController extends Controller
 {
@@ -14,12 +15,21 @@ class DepartmentController extends Controller
 
     public function show(Department $department)
     {
+        $department->subjects = Subject::where('department', $department->title)
+            ->orderBy('semester')
+            ->orderBy('subject_code')
+            ->get();
         return $department;
     }
 
     public function bySlug($slug)
     {
-        return Department::where('slug', $slug)->firstOrFail();
+        $department = Department::where('slug', $slug)->firstOrFail();
+        $department->subjects = Subject::where('department', $department->title)
+            ->orderBy('semester')
+            ->orderBy('subject_code')
+            ->get();
+        return $department;
     }
 
     public function store(\Illuminate\Http\Request $request)
