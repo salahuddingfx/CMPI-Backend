@@ -181,12 +181,24 @@ class BtebSubjectSemesterMap
      */
     public static function splitBySemester(array $subjectCodes, string $deptCode): array
     {
+        $nameToCode = [
+            'Civil Technology' => '64',
+            'Computer Science & Technology' => '66',
+            'Electrical Technology' => '67',
+            'Electronics Technology' => '68',
+            'Telecommunications Technology' => '94',
+            'Marine Technology' => '79',
+            'Mechanical Technology' => '70',
+            'Power Technology' => '71',
+        ];
+        $deptKey = $nameToCode[$deptCode] ?? $deptCode;
+
         $bySemester = [];
         foreach ($subjectCodes as $code) {
             $clean = trim(preg_replace('/\([^)]+\)/', '', $code));
             if (!preg_match('/^\d{5,6}$/', $clean)) continue;
 
-            $sem = self::getSemester($clean, $deptCode);
+            $sem = self::getSemester($clean, $deptKey);
             if ($sem === null) {
                 $sem = self::getSemesterAutoDetect($clean);
             }

@@ -11,6 +11,7 @@ class HeroSlide extends Model
         'title',
         'description',
         'image',
+        'video_url',
         'cta_label',
         'cta_href',
         'secondary_label',

@@ -173,6 +173,7 @@ class DatabaseSeeder extends Seeder
             'eyebrow' => 'Welcome to CMPI',
             'title' => 'Cox\'s Bazar Model Polytechnic Institute',
             'description' => 'Empowering diploma engineers with practical skills and industry-ready training since 1985.',
+            'video_url' => 'https://www.youtube.com/embed/dQw4w9WgXcQ',
             'cta_label' => 'Explore Programs',
             'cta_href' => '/academics',
             'panel_title' => 'Why CMPI?',
