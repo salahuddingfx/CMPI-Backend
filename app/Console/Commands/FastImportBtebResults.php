@@ -138,8 +138,12 @@ class FastImportBtebResults extends Command
         ]);
 
         // Cleanup temp files
-        array_map('unlink', $allPdfFiles);
-        rmdir($tmpDir);
+        foreach ($allPdfFiles as $pdfPath) {
+            if (file_exists($pdfPath)) {
+                @unlink($pdfPath);
+            }
+        }
+        @rmdir($tmpDir);
 
         $this->newLine();
         $this->info("=== IMPORT COMPLETE ===");
