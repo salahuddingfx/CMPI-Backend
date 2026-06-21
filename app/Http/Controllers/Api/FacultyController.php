@@ -31,6 +31,7 @@ class FacultyController extends Controller
             'email' => 'required|email|max:255',
             'phone' => 'required|string',
             'specialization' => 'nullable|array',
+            'photo' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -55,6 +56,7 @@ class FacultyController extends Controller
             'email' => 'required|email|max:255',
             'phone' => 'required|string',
             'specialization' => 'nullable|array',
+            'photo' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
