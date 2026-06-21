@@ -44,6 +44,23 @@ class StudentController extends Controller
         return $request->user();
     }
 
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name' => 'sometimes|string',
+            'phone' => 'sometimes|string',
+            'guardian' => 'sometimes|string',
+            'blood_group' => 'sometimes|string|nullable',
+            'address' => 'sometimes|string',
+        ]);
+
+        $user->update($data);
+
+        return response()->json(['user' => $user]);
+    }
+
     public function emails(Request $request)
     {
         $user = $request->user();
@@ -196,5 +213,80 @@ class StudentController extends Controller
 
         $user->delete();
         return response()->json(['message' => 'User deleted successfully']);
+    }
+
+    public function bulkImport(Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt|max:10240',
+        ]);
+
+        $file = $request->file('file');
+        $content = file_get_contents($file->getRealPath());
+        $lines = array_filter(explode("\n", $content));
+
+        if (count($lines) < 2) {
+            return response()->json(['message' => 'CSV file is empty or has no data rows'], 422);
+        }
+
+        $header = array_map('trim', str_getcsv(array_shift($lines)));
+        $header = array_map('strtolower', $header);
+
+        $created = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach ($lines as $lineNum => $line) {
+            $row = array_map('trim', str_getcsv($line));
+            if (count($row) < 3) continue;
+
+            $data = array_combine($header, $row);
+            $name = $data['name'] ?? null;
+            $email = $data['email'] ?? null;
+
+            if (!$name || !$email) {
+                $errors[] = "Line " . ($lineNum + 2) . ": Missing name or email";
+                $skipped++;
+                continue;
+            }
+
+            if (User::where('email', $email)->exists()) {
+                $skipped++;
+                continue;
+            }
+
+            $year = date('Y');
+            $studentId = 'CMPI-' . $year . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            while (User::where('student_id', $studentId)->exists()) {
+                $studentId = 'CMPI-' . $year . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            }
+
+            User::create([
+                'name' => $name,
+                'email' => $email,
+                'password' => \Illuminate\Support\Facades\Hash::make($data['password'] ?? 'student123'),
+                'student_id' => $studentId,
+                'department' => $data['department'] ?? null,
+                'semester' => $data['semester'] ?? '1st',
+                'session' => $data['session'] ?? ($year . '-' . ($year + 1)),
+                'phone' => $data['phone'] ?? null,
+                'guardian' => $data['guardian'] ?? null,
+                'blood_group' => $data['blood_group'] ?? null,
+                'address' => $data['address'] ?? null,
+                'role' => 'student',
+            ]);
+            $created++;
+        }
+
+        return response()->json([
+            'message' => "Import complete: {$created} created, {$skipped} skipped",
+            'created' => $created,
+            'skipped' => $skipped,
+            'errors' => $errors,
+        ]);
     }
 }

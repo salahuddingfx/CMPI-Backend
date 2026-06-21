@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\User;
 use App\Mail\AdmissionReceived;
+use App\Mail\AdmissionApproved;
+use App\Mail\AdmissionRejected;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -124,6 +126,7 @@ class AdmissionController extends Controller
 
         $request->validate([
             'status' => 'required|string|in:Pending,Approved,Rejected',
+            'reason' => 'nullable|string',
         ]);
 
         $newStatus = $request->status;
@@ -154,6 +157,18 @@ class AdmissionController extends Controller
                     'admission_date' => now(),
                     'role' => 'student',
                 ]);
+
+                try {
+                    Mail::to($admission->email)->send(new AdmissionApproved($admission, $studentId));
+                } catch (\Exception $e) {
+                    // Don't fail the request if email fails
+                }
+            }
+        } elseif (strtolower($newStatus) === 'rejected') {
+            try {
+                Mail::to($admission->email)->send(new AdmissionRejected($admission, $request->reason ?? null));
+            } catch (\Exception $e) {
+                // Don't fail the request if email fails
             }
         }
 

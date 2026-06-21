@@ -49,9 +49,6 @@ class BtebResultController extends Controller
             'results.*.gpa' => 'nullable|numeric',
             'results.*.referred_subjects' => 'nullable|array',
             'results.*.raw_text' => 'nullable|string',
-            'results.*.center_code' => 'nullable|string',
-            'results.*.institute_name' => 'nullable|string',
-            'results.*.exam_type' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -71,11 +68,8 @@ class BtebResultController extends Controller
                         'roll' => $result['roll'],
                         'semester' => $result['semester'],
                         'regulation' => $result['regulation'],
-                        'exam_type' => $result['exam_type'] ?? 'regular',
                     ],
                     [
-                        'center_code' => $result['center_code'] ?? null,
-                        'institute_name' => $result['institute_name'] ?? null,
                         'department' => $result['department'],
                         'holding_year' => $result['holding_year'],
                         'gpa' => $result['gpa'] ?? null,
@@ -195,43 +189,29 @@ class BtebResultController extends Controller
         foreach ($pdf->getPages() as $page) {
             $pageText = $page->getText();
 
-            // Split page into institute sections by center code boundaries
-            preg_match_all('/\b(\d{5})\s*(?:-\s*([^\n]*))?/', $pageText, $codeMatches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
+            $cmpiStartIndex = strpos($pageText, "74026");
+            if ($cmpiStartIndex === false) {
+                $cmpiStartIndex = strpos($pageText, "16058");
+            }
+            if ($cmpiStartIndex === false) {
+                $cmpiStartIndex = strpos($pageText, "51020");
+            }
+            if ($cmpiStartIndex === false) continue;
 
-            if (empty($codeMatches)) {
-                $sections = [['text' => $pageText, 'center_code' => null, 'institute_name' => null]];
-            } else {
-                $sections = [];
-                for ($si = 0; $si < count($codeMatches); $si++) {
-                    $centerCode = $codeMatches[$si][1][0];
-                    $instName = trim($codeMatches[$si][2][0] ?? '');
-                    $startOff = $codeMatches[$si][0][1];
-                    $endOff = ($si + 1 < count($codeMatches)) ? $codeMatches[$si + 1][0][1] : strlen($pageText);
-                    $sections[] = [
-                        'text' => substr($pageText, $startOff, $endOff - $startOff),
-                        'center_code' => $centerCode,
-                        'institute_name' => $instName,
-                    ];
-                }
+            $cmpiText = substr($pageText, $cmpiStartIndex);
+
+            if (preg_match('/\b\d{5}\s*-\s*/', substr($cmpiText, 10), $nextInstMatch, PREG_OFFSET_CAPTURE)) {
+                $cmpiText = substr($cmpiText, 0, $nextInstMatch[0][1] + 10);
             }
 
-            foreach ($sections as $section) {
-                $centerCode = $section['center_code'];
-                $instName = $section['institute_name'];
-                $cmpiText = $section['text'];
-
-                if (preg_match('/\b\d{5}\s*-\s*/', substr($cmpiText, 10), $nextInstMatch, PREG_OFFSET_CAPTURE)) {
-                    $cmpiText = substr($cmpiText, 0, $nextInstMatch[0][1] + 10);
-                }
-
-                // Detect semester from text headers
-                $semesterChunks = $this->splitBySemesterHeader($cmpiText, $semester);
+            // Detect semester from text headers
+            $semesterChunks = $this->splitBySemesterHeader($cmpiText, $semester);
 
             foreach ($semesterChunks as $chunk) {
                 $chunkText = $chunk['text'];
                 $chunkSemester = $chunk['semester'];
 
-                preg_match_all('/\b(\d{2,5})\s*-\s*([a-zA-Z\s&]+Technology|[a-zA-Z\s&]+Engineering)/', $chunkText, $techMatches, PREG_OFFSET_CAPTURE);
+                preg_match_all('/\b(\d{2})\s*-\s*([a-zA-Z\s&]+Technology|[a-zA-Z\s&]+Engineering)/', $chunkText, $techMatches, PREG_OFFSET_CAPTURE);
 
                 $techBlocks = [];
                 if (empty($techMatches[0])) {
@@ -285,9 +265,6 @@ class BtebResultController extends Controller
                                     'status' => 'Passed',
                                     'referred_subjects' => null,
                                     'raw_text' => "gpa{$semDigit}: {$gpaVal}",
-                                    'center_code' => $centerCode ?? null,
-                                    'institute_name' => $instName ?? null,
-                                    'exam_type' => 'regular',
                                 ];
                             }
                         } else {
@@ -301,9 +278,6 @@ class BtebResultController extends Controller
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => $match[0],
-                                'center_code' => $centerCode ?? null,
-                                'institute_name' => $instName ?? null,
-                                'exam_type' => 'regular',
                             ];
                         }
                         $lastDetectedDept = ($dept !== "Auto Detect" && $dept !== "General Technology") ? $dept : $lastDetectedDept;
@@ -329,9 +303,6 @@ class BtebResultController extends Controller
                             'status' => 'Passed',
                             'referred_subjects' => null,
                             'raw_text' => $match[0],
-                            'center_code' => $centerCode ?? null,
-                            'institute_name' => $instName ?? null,
-                            'exam_type' => 'regular',
                         ];
                         $lastDetectedDept = ($dept !== "Auto Detect" && $dept !== "General Technology") ? $dept : $lastDetectedDept;
                     }
@@ -358,9 +329,6 @@ class BtebResultController extends Controller
                                     'status' => 'Passed',
                                     'referred_subjects' => null,
                                     'raw_text' => $match[0],
-                                    'center_code' => $centerCode ?? null,
-                                    'institute_name' => $instName ?? null,
-                                    'exam_type' => 'regular',
                                 ];
                             }
                             $lastDetectedDept = ($dept !== "Auto Detect" && $dept !== "General Technology") ? $dept : $lastDetectedDept;
@@ -395,9 +363,6 @@ class BtebResultController extends Controller
                                         'status' => 'Referred',
                                         'referred_subjects' => $referredSubjects,
                                         'raw_text' => "gpa{$semDigit}: ref, ref_sub: " . implode(', ', $referredSubjects),
-                                        'center_code' => $centerCode ?? null,
-                                        'institute_name' => $instName ?? null,
-                                        'exam_type' => 'regular',
                                     ];
                                 } else {
                                     $results[] = [
@@ -410,9 +375,6 @@ class BtebResultController extends Controller
                                         'status' => 'Passed',
                                         'referred_subjects' => null,
                                         'raw_text' => "gpa{$semDigit}: {$semValue}",
-                                        'center_code' => $centerCode ?? null,
-                                        'institute_name' => $instName ?? null,
-                                        'exam_type' => 'regular',
                                     ];
                                 }
                             }
@@ -433,15 +395,11 @@ class BtebResultController extends Controller
                                 'status' => 'Referred',
                                 'referred_subjects' => array_values($referredSubjects),
                                 'raw_text' => $match[0],
-                                'center_code' => $centerCode ?? null,
-                                'institute_name' => $instName ?? null,
-                                'exam_type' => 'regular',
                             ];
                         }
                         $lastDetectedDept = ($dept !== "Auto Detect" && $dept !== "General Technology") ? $dept : $lastDetectedDept;
                     }
                 }
-            }
             }
         }
 
@@ -449,15 +407,8 @@ class BtebResultController extends Controller
         try {
             foreach ($results as $result) {
                 BtebResult::updateOrCreate(
+                    ['roll' => $result['roll'], 'semester' => $result['semester'], 'regulation' => $result['regulation']],
                     [
-                        'roll' => $result['roll'],
-                        'semester' => $result['semester'],
-                        'regulation' => $result['regulation'],
-                        'exam_type' => $result['exam_type'] ?? 'regular',
-                    ],
-                    [
-                        'center_code' => $result['center_code'] ?? null,
-                        'institute_name' => $result['institute_name'] ?? null,
                         'department' => $result['department'],
                         'holding_year' => $result['holding_year'],
                         'gpa' => $result['gpa'],

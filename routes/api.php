@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BillController;
 use App\Http\Controllers\Api\InstituteController;
 use App\Http\Controllers\Api\NoticeController;
 use App\Http\Controllers\Api\EventController;
@@ -11,10 +12,12 @@ use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FileUploadController;
 use App\Http\Controllers\Api\BtebResultController;
 use App\Http\Controllers\Api\InstituteResultController;
+use App\Http\Controllers\Api\ClassRoutineController;
 use App\Http\Controllers\Api\SocialLinkController;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -51,6 +54,9 @@ Route::get('/institute-results/search', [InstituteResultController::class, 'sear
 
 Route::get('/social-links', [SocialLinkController::class, 'index']);
 
+Route::get('/class-routines', [ClassRoutineController::class, 'index']);
+Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::put('/institute', [InstituteController::class, 'update']);
     Route::get('/institute/chart-data', [InstituteController::class, 'chartData']);
@@ -62,8 +68,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/results', [StudentController::class, 'results']);
     Route::get('/dashboard/bills', [StudentController::class, 'bills']);
     Route::get('/dashboard/profile', [StudentController::class, 'profile']);
+    Route::put('/dashboard/profile', [StudentController::class, 'updateProfile']);
     Route::get('/dashboard/emails', [StudentController::class, 'emails']);
     Route::get('/dashboard/emails/{id}/body', [StudentController::class, 'emailBody']);
+
+    // Bills
+    Route::get('/bills', [BillController::class, 'index']);
+    Route::post('/bills', [BillController::class, 'store']);
+    Route::put('/bills/{bill}', [BillController::class, 'update']);
+    Route::delete('/bills/{bill}', [BillController::class, 'destroy']);
+    Route::post('/bills/{bill}/mark-paid', [BillController::class, 'markPaid']);
+    Route::get('/bills/stats', [BillController::class, 'stats']);
+    Route::post('/bills/bulk', [BillController::class, 'bulkCreate']);
+
+    // Reports
+    Route::get('/reports/department-result', [ReportController::class, 'departmentResultData']);
+    Route::get('/reports/department-result/download', [ReportController::class, 'departmentResult']);
+    Route::get('/reports/student-transcript/{roll}', [ReportController::class, 'studentTranscriptData']);
+    Route::get('/reports/student-transcript/{roll}/download', [ReportController::class, 'studentTranscript']);
 
     // File uploads
     Route::post('/upload', [FileUploadController::class, 'upload']);
@@ -80,6 +102,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/institute-results/manual', [InstituteResultController::class, 'manual']);
     Route::delete('/institute-results/{id}', [InstituteResultController::class, 'destroy']);
     Route::get('/institute-results/stats', [InstituteResultController::class, 'stats']);
+
+    // Class routines
+    Route::post('/class-routines/upload', [ClassRoutineController::class, 'upload']);
+    Route::delete('/class-routines/{routine}', [ClassRoutineController::class, 'destroy']);
 
     // Admin CRUD operations
     Route::post('/notices', [NoticeController::class, 'store']);
@@ -109,6 +135,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/users', [StudentController::class, 'storeUser']);
     Route::put('/users/{user}', [StudentController::class, 'updateUser']);
     Route::delete('/users/{user}', [StudentController::class, 'destroyUser']);
+    Route::post('/users/bulk-import', [StudentController::class, 'bulkImport']);
 
     Route::post('/social-links', [SocialLinkController::class, 'store']);
     Route::put('/social-links/{socialLink}', [SocialLinkController::class, 'update']);

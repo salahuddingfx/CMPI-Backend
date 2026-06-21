@@ -34,8 +34,10 @@ class ProcessBtebDriveImport implements ShouldQueue
         $this->importJob->update(['status' => 'processing']);
 
         try {
-            // Extract files with their names
-            $fileIds = $this->extractFileIds($this->driveUrl);
+            // Extract files with their folder context
+            $extractResult = $this->extractFileIds($this->driveUrl);
+            $fileIds = $extractResult['ids'];
+            $fileFolders = $extractResult['file_folders'];
 
             if (empty($fileIds)) {
                 $this->importJob->update([
@@ -56,8 +58,6 @@ class ProcessBtebDriveImport implements ShouldQueue
             $processedCount = 0;
 
             foreach ($fileIds as $fileId) {
-                    $isRescrutiny = false;
-
                     try {
                         $dl = $this->downloadDriveFile($fileId);
                         if ($dl === null) {
@@ -70,6 +70,8 @@ class ProcessBtebDriveImport implements ShouldQueue
                             $errors[] = "Not a valid PDF: {$fileName}";
                             continue;
                         }
+
+                        $isRescrutiny = $this->isRescrutinyFile($fileName) || $this->isRescrutinyFolder($fileFolders[$fileId] ?? '');
 
                         // Auto-detect semester & regulation from filename
                         $meta = $this->parseFilenameForMetadata($fileName);
@@ -115,8 +117,11 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'roll' => $result['roll'],
                                 'semester' => $result['semester'],
                                 'regulation' => $result['regulation'],
+                                'exam_type' => $result['exam_type'] ?? 'regular',
                             ],
                             [
+                                'center_code' => $result['center_code'] ?? null,
+                                'institute_name' => $result['institute_name'] ?? null,
                                 'department' => $result['department'],
                                 'holding_year' => $result['holding_year'],
                                 'gpa' => $result['gpa'],
@@ -210,12 +215,13 @@ class ProcessBtebDriveImport implements ShouldQueue
     private function extractFileIds(string $folderUrl): array
     {
         $allIds = [];
+        $fileFolders = [];
         $visitedFolders = [];
-        $this->extractFileIdsRecursive($folderUrl, $allIds, $visitedFolders);
-        return array_values(array_unique($allIds));
+        $this->extractFileIdsRecursive($folderUrl, $allIds, $fileFolders, $visitedFolders);
+        return ['ids' => array_values(array_unique($allIds)), 'file_folders' => $fileFolders];
     }
 
-    private function extractFileIdsRecursive(string $folderUrl, array &$allIds, array &$visitedFolders): void
+    private function extractFileIdsRecursive(string $folderUrl, array &$allIds, array &$fileFolders, array &$visitedFolders, string $parentFolderName = ''): void
     {
         preg_match('/folders\/([a-zA-Z0-9_-]+)/', $folderUrl, $folderMatch);
         $folderId = $folderMatch[1] ?? null;
@@ -224,6 +230,7 @@ class ProcessBtebDriveImport implements ShouldQueue
             preg_match('/d\/([a-zA-Z0-9_-]{25,50})/', $folderUrl, $fileMatch);
             if (isset($fileMatch[1])) {
                 $allIds[] = $fileMatch[1];
+                $fileFolders[$fileMatch[1]] = $parentFolderName;
             }
             return;
         }
@@ -233,6 +240,18 @@ class ProcessBtebDriveImport implements ShouldQueue
 
         $html = $this->fetchFolderHtml($folderUrl, $folderId);
         if (!$html) return;
+
+        // Try to extract current folder name from breadcrumb
+        $currentFolderName = $parentFolderName;
+        if (preg_match('/data-tooltip="([^"]+)"/', $html, $fnameMatch)) {
+            $currentFolderName = $fnameMatch[1];
+        } elseif (preg_match('/<title>([^<]+)<\/title>/', $html, $titleMatch)) {
+            $title = trim($titleMatch[1]);
+            $title = preg_replace('/\s*-\s*Google Drive\s*$/i', '', $title);
+            if ($title !== '' && !in_array(strtolower($title), ['my drive', 'drive'])) {
+                $currentFolderName = $title;
+            }
+        }
 
         // Parse _DRIVE_ivd to get file entries with name, type, and parent info
         $ivdData = $this->parseDriveIvd($html);
@@ -259,26 +278,29 @@ class ProcessBtebDriveImport implements ShouldQueue
 
             if ($type === 'folder') {
                 if ($id !== $folderId && !in_array($id, $visitedFolders)) {
-                    $subfolderIds[] = $id;
+                    // Track subfolder name
+                    $subName = $entry['name'] ?? '';
+                    $subfolderIds[$id] = $subName;
                 }
             } elseif ($type === 'file') {
                 $allIds[] = $id;
+                $fileFolders[$id] = $currentFolderName;
             } else {
                 // Unknown type - try to determine by checking if it's a subfolder
                 if ($id !== $folderId && !in_array($id, $visitedFolders)) {
-                    // Check if this ID appears as a subfolder in /folders/ links
                     if (preg_match('/\/folders\/' . preg_quote($id, '/') . '/', $html)) {
-                        $subfolderIds[] = $id;
+                        $subfolderIds[$id] = $entry['name'] ?? '';
                     } else {
                         $allIds[] = $id;
+                        $fileFolders[$id] = $currentFolderName;
                     }
                 }
             }
         }
 
-        foreach ($subfolderIds as $subFolderId) {
+        foreach ($subfolderIds as $subFolderId => $subFolderName) {
             $subUrl = "https://drive.google.com/drive/folders/{$subFolderId}";
-            $this->extractFileIdsRecursive($subUrl, $allIds, $visitedFolders);
+            $this->extractFileIdsRecursive($subUrl, $allIds, $fileFolders, $visitedFolders, $subFolderName);
         }
     }
 
@@ -475,34 +497,98 @@ class ProcessBtebDriveImport implements ShouldQueue
         return false;
     }
 
-    private function parsePdfText(string $pageText, string $semester, string $regulation, string $holdingYear, string &$lastDetectedDept, bool $isRescrutiny = false): array
+    private function parsePdfText(string $pageText, string $semester, string $regulation, string $holdingYear, &$lastDetectedDept, bool $isRescrutiny = false): array
     {
         $results = [];
 
-        // For normal results, require institute center code
-        // 74026/16058 = CMPI, 51020 = Marine Institute
-        if (!$isRescrutiny) {
-            $cmpiStartIndex = strpos($pageText, "74026");
-            if ($cmpiStartIndex === false) {
-                $cmpiStartIndex = strpos($pageText, "16058");
-            }
-            if ($cmpiStartIndex === false) {
-                $cmpiStartIndex = strpos($pageText, "51020");
-            }
-            if ($cmpiStartIndex === false) return $results;
-            $cmpiText = substr($pageText, $cmpiStartIndex);
-        } else {
-            $cmpiText = $pageText;
+        // Split page into institute sections by center code boundaries
+        // Format: "74026 - Cox's Bazar Model Polytechnic Institute"
+        // or just "74026" followed by text
+        $sections = $this->splitByInstitute($pageText);
+
+        foreach ($sections as $section) {
+            $sectionResults = $this->parseInstituteSection(
+                $section['text'],
+                $section['center_code'],
+                $section['institute_name'],
+                $semester,
+                $regulation,
+                $holdingYear,
+                $lastDetectedDept,
+                $isRescrutiny
+            );
+            $results = array_merge($results, $sectionResults);
         }
 
-        if (preg_match('/\b\d{5}\s*-\s*/', substr($cmpiText, 10), $nextInstMatch, PREG_OFFSET_CAPTURE)) {
-            $cmpiText = substr($cmpiText, 0, $nextInstMatch[0][1] + 10);
+        return $results;
+    }
+
+    /**
+     * Split page text into sections by institute center code boundaries.
+     * Each section starts with a 5-digit center code.
+     */
+    private function splitByInstitute(string $pageText): array
+    {
+        // Find all center code positions: 5-digit code, optionally followed by " - Institute Name"
+        preg_match_all('/\b(\d{5})\s*(?:-\s*([^\n]*))?/', $pageText, $codeMatches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
+
+        if (empty($codeMatches)) {
+            return [['text' => $pageText, 'center_code' => null, 'institute_name' => null]];
+        }
+
+        $sections = [];
+        for ($i = 0; $i < count($codeMatches); $i++) {
+            $centerCode = $codeMatches[$i][1];
+            $instituteName = trim($codeMatches[$i][2] ?? '');
+            $startOffset = $codeMatches[$i][0][1];
+
+            // Section ends at the next center code or end of text
+            $endOffset = ($i + 1 < count($codeMatches)) ? $codeMatches[$i + 1][0][1] : strlen($pageText);
+
+            $sectionText = substr($pageText, $startOffset, $endOffset - $startOffset);
+
+            $sections[] = [
+                'text' => $sectionText,
+                'center_code' => $centerCode,
+                'institute_name' => $instituteName,
+            ];
+        }
+
+        return $sections;
+    }
+
+    /**
+     * Parse a single institute section from a page.
+     */
+    private function parseInstituteSection(
+        string $sectionText,
+        ?string $centerCode,
+        ?string $instituteName,
+        string $semester,
+        string $regulation,
+        string $holdingYear,
+        &$lastDetectedDept,
+        bool $isRescrutiny
+    ): array {
+        $results = [];
+
+        // Skip empty sections or sections without recognizable data
+        if (strlen($sectionText) < 10) return $results;
+
+        // Skip ALLIED/MARINE TRADE files (handled separately, no CMPI data)
+        // But only if center code indicates it's not a regular polytechnic
+        // We process ALL sections now — even Marine and ALLIED
+
+        // Trim to next institute if text is too long (page may have multiple institutes)
+        $trimmedText = $sectionText;
+        if (preg_match('/\b\d{5}\s*-\s*/', substr($sectionText, 10), $nextInstMatch, PREG_OFFSET_CAPTURE)) {
+            $trimmedText = substr($sectionText, 0, $nextInstMatch[0][1] + 10);
         }
 
         // Split text by semester headers to detect which results belong to which semester
         // BTEB PDFs often contain multiple semesters in one file
         // e.g. "1st Semester", "2nd Semester", "Semester: 1", "Sem 2", etc.
-        $semesterChunks = $this->splitBySemesterHeader($cmpiText, $semester);
+        $semesterChunks = $this->splitBySemesterHeader($trimmedText, $semester);
 
         foreach ($semesterChunks as $chunk) {
             $chunkText = $chunk['text'];
@@ -577,6 +663,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => "gpa{$semDigit}: {$gpaVal}",
+                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
                             ];
                         }
                     } else {
@@ -586,11 +673,12 @@ class ProcessBtebDriveImport implements ShouldQueue
                             'semester' => $chunkSemester,
                             'regulation' => $regulation,
                             'holding_year' => $holdingYear,
-                            'gpa' => $cgpa,
-                            'status' => 'Passed',
-                            'referred_subjects' => null,
-                            'raw_text' => $match[0],
-                        ];
+                                'gpa' => $cgpa,
+                                'status' => 'Passed',
+                                'referred_subjects' => null,
+                                'raw_text' => $match[0],
+                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                            ];
                     }
                 }
 
@@ -599,29 +687,57 @@ class ProcessBtebDriveImport implements ShouldQueue
                 foreach ($passedMatches as $match) {
                     $roll = $match[1];
                     $contentStr = $match[2];
-                    $gpa = null;
 
-                    if (preg_match('/^[2-4]\.\d{2}$/', trim($contentStr))) {
-                        $gpa = (float)trim($contentStr);
-                    } elseif ($chunkSemDigit !== null && preg_match('/gpa' . $chunkSemDigit . '\s*:\s*([2-4]\.\d{2})/i', $contentStr, $gpaMatches)) {
-                        $gpa = (float)$gpaMatches[1];
-                    } elseif (preg_match('/gpa\d+\s*:\s*([2-4]\.\d{2})/i', $contentStr, $gpaMatches)) {
-                        $gpa = (float)$gpaMatches[1];
-                    } elseif (preg_match('/([2-4]\.\d{2})/', $contentStr, $gpaMatches)) {
-                        $gpa = (float)$gpaMatches[1];
+                    // Check for multi-GPA combined format in parentheses:
+                    // 885565 (gpa4: 3.13, gpa3: 3.33, gpa2: 3.05, gpa1: 3.43)
+                    $parenMultiGpa = preg_match_all('/gpa(\d)\s*:\s*([2-4]\.\d{2})/i', $contentStr, $parenSemMatches, PREG_SET_ORDER);
+
+                    if ($parenMultiGpa > 1) {
+                        // Split into per-semester records
+                        foreach ($parenSemMatches as $pg) {
+                            $semDigit = $pg[1];
+                            $gpaVal = (float)$pg[2];
+                            $suffix = match ((int)$semDigit) { 1 => 'st', 2 => 'nd', 3 => 'rd', default => 'th' };
+                            $semLabel = $semDigit . $suffix;
+                            $results[] = [
+                                'roll' => $roll,
+                                'department' => $dept,
+                                'semester' => $semLabel,
+                                'regulation' => $regulation,
+                                'holding_year' => $holdingYear,
+                                'gpa' => $gpaVal,
+                                'status' => 'Passed',
+                                'referred_subjects' => null,
+                                'raw_text' => "gpa{$semDigit}: {$gpaVal}",
+                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                            ];
+                        }
+                    } else {
+                        // Single GPA — use original logic
+                        $gpa = null;
+                        if (preg_match('/^[2-4]\.\d{2}$/', trim($contentStr))) {
+                            $gpa = (float)trim($contentStr);
+                        } elseif ($chunkSemDigit !== null && preg_match('/gpa' . $chunkSemDigit . '\s*:\s*([2-4]\.\d{2})/i', $contentStr, $gpaMatches)) {
+                            $gpa = (float)$gpaMatches[1];
+                        } elseif (preg_match('/gpa\d+\s*:\s*([2-4]\.\d{2})/i', $contentStr, $gpaMatches)) {
+                            $gpa = (float)$gpaMatches[1];
+                        } elseif (preg_match('/([2-4]\.\d{2})/', $contentStr, $gpaMatches)) {
+                            $gpa = (float)$gpaMatches[1];
+                        }
+
+                        $results[] = [
+                            'roll' => $roll,
+                            'department' => $dept,
+                            'semester' => $chunkSemester,
+                            'regulation' => $regulation,
+                            'holding_year' => $holdingYear,
+                            'gpa' => $gpa,
+                            'status' => 'Passed',
+                            'referred_subjects' => null,
+                            'raw_text' => $match[0],
+                            'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                        ];
                     }
-
-                    $results[] = [
-                        'roll' => $roll,
-                        'department' => $dept,
-                        'semester' => $chunkSemester,
-                        'regulation' => $regulation,
-                        'holding_year' => $holdingYear,
-                        'gpa' => $gpa,
-                        'status' => 'Passed',
-                        'referred_subjects' => null,
-                        'raw_text' => $match[0]
-                    ];
                 }
 
                 preg_match_all('/\b(\d{6})\s*\{\s*([^}]+)\s*\}/', $blockText, $referredMatches, PREG_SET_ORDER);
@@ -646,6 +762,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => $match[0],
+                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
                             ];
                         }
                         continue;
@@ -660,10 +777,13 @@ class ProcessBtebDriveImport implements ShouldQueue
                         preg_match_all('/ref_sub\s*:\s*([^\}]+)/i', $contentStr, $refSubMatch);
                         $refSubjectsRaw = $refSubMatch[1][0] ?? '';
                         preg_match_all('/\b\d{5,6}(?:\([^)]+\))?\b/', $refSubjectsRaw, $refCodeMatches);
-                        $referredSubjects = array_values(array_filter(array_map('trim', $refCodeMatches[0] ?? [])));
+                        $allReferredSubjects = array_values(array_filter(array_map('trim', $refCodeMatches[0] ?? [])));
 
-                        $inferredDept = $this->detectDeptFromSubjects($referredSubjects, '');
+                        $inferredDept = $this->detectDeptFromSubjects($allReferredSubjects, '');
                         $studentDept = $inferredDept !== '' ? $inferredDept : $dept;
+
+                        // Split referred subjects by semester using curriculum map
+                        $semesterMap = \App\Utils\BtebSubjectSemesterMap::splitBySemester($allReferredSubjects, $studentDept);
 
                         // Create separate record per semester
                         foreach ($multiGpaMatches as $gpaMatch) {
@@ -673,6 +793,8 @@ class ProcessBtebDriveImport implements ShouldQueue
                             $semLabel = $semDigit . $suffix;
 
                             if (strtolower($semValue) === 'ref') {
+                                // Use semester-specific referred subjects from the map
+                                $semSubjects = $semesterMap[$semLabel] ?? [];
                                 $results[] = [
                                     'roll' => $roll,
                                     'department' => $studentDept,
@@ -681,8 +803,9 @@ class ProcessBtebDriveImport implements ShouldQueue
                                     'holding_year' => $holdingYear,
                                     'gpa' => null,
                                     'status' => 'Referred',
-                                    'referred_subjects' => $referredSubjects,
-                                    'raw_text' => "gpa{$semDigit}: ref, ref_sub: " . implode(', ', $referredSubjects),
+                                    'referred_subjects' => !empty($semSubjects) ? $semSubjects : $allReferredSubjects,
+                                    'raw_text' => "gpa{$semDigit}: ref, ref_sub: " . implode(', ', !empty($semSubjects) ? $semSubjects : $allReferredSubjects),
+                                    'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
                                 ];
                             } else {
                                 $results[] = [
@@ -694,14 +817,15 @@ class ProcessBtebDriveImport implements ShouldQueue
                                     'gpa' => (float)$semValue,
                                     'status' => 'Passed',
                                     'referred_subjects' => null,
-                                    'raw_text' => "gpa{$semDigit}: {$semValue}",
-                                ];
+                                'raw_text' => "gpa{$semDigit}: {$semValue}",
+                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                            ];
                             }
                         }
                     } else {
                         // Single referred entry (old format)
                         preg_match_all('/\b\d{5,6}(?:\([^)]+\))?\b/', $contentStr, $codeMatches);
-                        $referredSubjects = array_filter(array_map('trim', $codeMatches[0] ?? []));
+                        $allCodes = array_filter(array_map('trim', $codeMatches[0] ?? []));
 
                         $gpa = null;
                         if ($chunkSemDigit !== null && preg_match('/gpa' . $chunkSemDigit . '\s*:\s*([2-4]\.\d{2})/i', $contentStr, $gpaMatches)) {
@@ -712,20 +836,42 @@ class ProcessBtebDriveImport implements ShouldQueue
                             $gpa = (float)$gpaMatches[1];
                         }
 
-                        $inferredDept = $this->detectDeptFromSubjects($referredSubjects, '');
+                        $inferredDept = $this->detectDeptFromSubjects(array_values($allCodes), '');
                         $studentDept = $inferredDept !== '' ? $inferredDept : $dept;
 
-                        $results[] = [
-                            'roll' => $roll,
-                            'department' => $studentDept,
-                            'semester' => $chunkSemester,
-                            'regulation' => $regulation,
-                            'holding_year' => $holdingYear,
-                            'gpa' => $gpa,
-                            'status' => 'Referred',
-                            'referred_subjects' => array_values($referredSubjects),
-                            'raw_text' => $match[0]
-                        ];
+                        // Filter out GPA values from referred subjects (5-6 digit codes only)
+                        $referredSubjects = array_values(array_filter($allCodes, function ($code) {
+                            return preg_match('/^\d{5,6}$/', $code);
+                        }));
+
+                        // If a GPA was found, this student PASSED — no referred subjects
+                        if ($gpa !== null) {
+                            $results[] = [
+                                'roll' => $roll,
+                                'department' => $studentDept,
+                                'semester' => $chunkSemester,
+                                'regulation' => $regulation,
+                                'holding_year' => $holdingYear,
+                                'gpa' => $gpa,
+                                'status' => 'Passed',
+                                'referred_subjects' => null,
+                                    'raw_text' => $match[0],
+                                    'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                ];
+                            } else {
+                                $results[] = [
+                                    'roll' => $roll,
+                                    'department' => $studentDept,
+                                    'semester' => $chunkSemester,
+                                    'regulation' => $regulation,
+                                    'holding_year' => $holdingYear,
+                                    'gpa' => null,
+                                    'status' => 'Referred',
+                                    'referred_subjects' => $referredSubjects,
+                                    'raw_text' => $match[0],
+                                    'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                ];
+                            }
                     }
                 }
             }
@@ -736,6 +882,12 @@ class ProcessBtebDriveImport implements ShouldQueue
             if ($last['department'] !== "Auto Detect" && $last['department'] !== "General Technology") {
                 $lastDetectedDept = $last['department'];
             }
+            // Add institute info to all results from this section
+            foreach ($results as &$r) {
+                $r['center_code'] = $centerCode;
+                $r['institute_name'] = $instituteName;
+            }
+            unset($r);
         }
 
         return $results;
@@ -949,6 +1101,121 @@ class ProcessBtebDriveImport implements ShouldQueue
             '67141' => 'Telecommunications Technology',
             '67151' => 'Telecommunications Technology',
             '67171' => 'Telecommunications Technology',
+
+            // —— Automobile Technology (62) ——
+            '26241' => 'Automobile Technology',
+            '66241' => 'Power Technology',
+            '66253' => 'Power Technology',
+            '66274' => 'Power Technology',
+
+            // —— Chemical Technology (63) ——
+            '26355' => 'Chemical Technology',
+            '26364' => 'Chemical Technology',
+            '26365' => 'Chemical Technology',
+            '66363' => 'Chemical Technology',
+
+            // —— Civil Technology (64) ——
+            '26447' => 'Civil Technology',
+            '28861' => 'Civil Technology',
+            '66467' => 'Civil Technology',
+
+            // —— Electrical Technology (67) ——
+            '26762' => 'Electrical Technology',
+            '26764' => 'Electrical Technology',
+            '26771' => 'Electrical Technology',
+            '26773' => 'Electrical Technology',
+            '66743' => 'Electrical Technology',
+            '66764' => 'Electrical Technology',
+
+            // —— Electronics Technology (68) ——
+            '26821' => 'Electronics Technology',
+            '26831' => 'Electronics Technology',
+            '26832' => 'Electronics Technology',
+            '26841' => 'Electronics Technology',
+            '26843' => 'Electronics Technology',
+            '26851' => 'Electronics Technology',
+            '26852' => 'Electronics Technology',
+            '26861' => 'Electronics Technology',
+            '26862' => 'Electronics Technology',
+            '68662' => 'Electronics Technology',
+            '68663' => 'Electronics Technology',
+            '68665' => 'Electronics Technology',
+            '68671' => 'Electronics Technology',
+            '68672' => 'Electronics Technology',
+
+            // —— Food Technology (69) ——
+            '26932' => 'Food Technology',
+            '26952' => 'Food Technology',
+            '26954' => 'Food Technology',
+            '26961' => 'Food Technology',
+            '26963' => 'Food Technology',
+            '26964' => 'Food Technology',
+            '66944' => 'Food Technology',
+            '66973' => 'Food Technology',
+
+            // —— Mechanical Technology (70) ——
+            '27021' => 'Mechanical Technology',
+            '27042' => 'Mechanical Technology',
+            '27043' => 'Mechanical Technology',
+            '27053' => 'Mechanical Technology',
+            '27055' => 'Mechanical Technology',
+            '27062' => 'Mechanical Technology',
+            '27063' => 'Mechanical Technology',
+            '27065' => 'Mechanical Technology',
+            '27073' => 'Mechanical Technology',
+            '29231' => 'Mechanical Technology',
+            '67052' => 'Mechanical Technology',
+            '67053' => 'Mechanical Technology',
+            '67076' => 'Mechanical Technology',
+
+            // —— Power Technology (71) ——
+            '27111' => 'Power Technology',
+            '27151' => 'Power Technology',
+            '27152' => 'Power Technology',
+            '67142' => 'Power Technology',
+            '67153' => 'Power Technology',
+            '67162' => 'Power Technology',
+            '67172' => 'Power Technology',
+
+            // —— RAC Technology (72) ——
+            '27231' => 'RAC Technology',
+            '27252' => 'RAC Technology',
+            '27261' => 'RAC Technology',
+
+            // —— Marine Technology (79) ——
+            '27941' => 'Marine Technology',
+            '27942' => 'Marine Technology',
+            '27954' => 'Marine Technology',
+            '27961' => 'Marine Technology',
+            '27962' => 'Marine Technology',
+            '27963' => 'Marine Technology',
+            '27964' => 'Marine Technology',
+            '27965' => 'Marine Technology',
+
+            // —— Shipbuilding Technology (80) ——
+            '28021' => 'Shipbuilding Technology',
+            '28061' => 'Shipbuilding Technology',
+            '68081' => 'Shipbuilding Technology',
+
+            // —— CST updates (85) ——
+            '28533' => 'Computer Science & Technology',
+            '28567' => 'Computer Science & Technology',
+            '28572' => 'Computer Science & Technology',
+            '28573' => 'Computer Science & Technology',
+            '28575' => 'Computer Science & Technology',
+
+            // —— Electromedical Technology (86) ——
+            '28621' => 'Electromedical Technology',
+            '28632' => 'Electromedical Technology',
+            '28641' => 'Electromedical Technology',
+            '28651' => 'Electromedical Technology',
+            '28652' => 'Electromedical Technology',
+            '28653' => 'Electromedical Technology',
+            '28654' => 'Electromedical Technology',
+            '28661' => 'Electromedical Technology',
+
+            // —— Architecture Technology (88) ——
+            '68774' => 'Architecture Technology',
         ];
 
         // Count how many referred subjects map to each department

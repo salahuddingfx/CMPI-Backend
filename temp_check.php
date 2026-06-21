@@ -1,170 +1,4 @@
-<?php
-
-namespace App\Http\Controllers\Api;
-
-use App\Http\Controllers\Controller;
-use App\Models\BtebResult;
-use App\Models\ImportJob;
-use App\Jobs\ProcessBtebDriveImport;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use Smalot\PdfParser\Parser;
-
-class BtebResultController extends Controller
-{
-    public function search(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'roll' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['message' => 'Roll number is required'], 422);
-        }
-
-        $roll = $request->query('roll');
-        $results = BtebResult::where('roll', $roll)
-            ->orderBy('semester')
-            ->get();
-
-        return response()->json($results);
-    }
-
-    public function import(Request $request)
-    {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'results' => 'required|array',
-            'results.*.roll' => 'required|string',
-            'results.*.department' => 'required|string',
-            'results.*.semester' => 'required|string',
-            'results.*.regulation' => 'required|string',
-            'results.*.holding_year' => 'required|string',
-            'results.*.status' => 'required|string|in:Passed,Referred',
-            'results.*.gpa' => 'nullable|numeric',
-            'results.*.referred_subjects' => 'nullable|array',
-            'results.*.raw_text' => 'nullable|string',
-            'results.*.center_code' => 'nullable|string',
-            'results.*.institute_name' => 'nullable|string',
-            'results.*.exam_type' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Invalid results payload data',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $results = $request->input('results', []);
-
-        DB::beginTransaction();
-        try {
-            foreach ($results as $result) {
-                BtebResult::updateOrCreate(
-                    [
-                        'roll' => $result['roll'],
-                        'semester' => $result['semester'],
-                        'regulation' => $result['regulation'],
-                        'exam_type' => $result['exam_type'] ?? 'regular',
-                    ],
-                    [
-                        'center_code' => $result['center_code'] ?? null,
-                        'institute_name' => $result['institute_name'] ?? null,
-                        'department' => $result['department'],
-                        'holding_year' => $result['holding_year'],
-                        'gpa' => $result['gpa'] ?? null,
-                        'status' => $result['status'],
-                        'referred_subjects' => $result['referred_subjects'] ?? null,
-                        'raw_text' => $result['raw_text'] ?? null,
-                    ]
-                );
-            }
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Successfully imported BTEB results',
-                'count' => count($results)
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to import results due to a database error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function importFromDrive(Request $request)
-    {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'drive_url' => 'required|string',
-            'semester' => 'nullable|string',
-            'regulation' => 'nullable|string',
-            'holding_year' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $importJob = ImportJob::create([
-            'drive_url' => $request->input('drive_url'),
-            'semester' => $request->input('semester') ?? 'auto',
-            'regulation' => $request->input('regulation') ?? 'auto',
-            'holding_year' => $request->input('holding_year') ?? 'auto',
-            'status' => 'pending',
-        ]);
-
-        ProcessBtebDriveImport::dispatch(
-            $importJob,
-            $request->input('drive_url'),
-            $request->input('semester'),
-            $request->input('regulation'),
-            $request->input('holding_year')
-        );
-
-        return response()->json([
-            'message' => 'Import job started',
-            'job_id' => $importJob->id,
-            'status' => 'pending',
-        ]);
-    }
-
-    public function importStatus(Request $request, string $jobId)
-    {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized.'], 403);
-        }
-
-        $job = ImportJob::find($jobId);
-        if (!$job) {
-            return response()->json(['message' => 'Import job not found'], 404);
-        }
-
-        return response()->json([
-            'id' => $job->id,
-            'status' => $job->status,
-            'total_files' => $job->total_files,
-            'processed_files' => $job->processed_files,
-            'total_results' => $job->total_results,
-            'error_log' => $job->error_log,
-            'created_at' => $job->created_at,
-            'updated_at' => $job->updated_at,
-        ]);
-    }
-
-    public function uploadPdf(Request $request)
-    {
+<?php class X { public function uploadPdf(Request $request) {
         if ($request->user()->role !== 'admin') {
             return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
         }
@@ -199,12 +33,13 @@ class BtebResultController extends Controller
             preg_match_all('/\b(\d{5})\s*(?:-\s*([^\n]*))?/', $pageText, $codeMatches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
 
             if (empty($codeMatches)) {
+                // No center codes found — try parsing as-is
                 $sections = [['text' => $pageText, 'center_code' => null, 'institute_name' => null]];
             } else {
                 $sections = [];
                 for ($si = 0; $si < count($codeMatches); $si++) {
-                    $centerCode = $codeMatches[$si][1][0];
-                    $instName = trim($codeMatches[$si][2][0] ?? '');
+                    $centerCode = $codeMatches[$si][1];
+                    $instName = trim($codeMatches[$si][2] ?? '');
                     $startOff = $codeMatches[$si][0][1];
                     $endOff = ($si + 1 < count($codeMatches)) ? $codeMatches[$si + 1][0][1] : strlen($pageText);
                     $sections[] = [
@@ -220,7 +55,7 @@ class BtebResultController extends Controller
                 $instName = $section['institute_name'];
                 $cmpiText = $section['text'];
 
-                if (preg_match('/\b\d{5}\s*-\s*/', substr($cmpiText, 10), $nextInstMatch, PREG_OFFSET_CAPTURE)) {
+            if (preg_match('/\b\d{5}\s*-\s*/', substr($cmpiText, 10), $nextInstMatch, PREG_OFFSET_CAPTURE)) {
                     $cmpiText = substr($cmpiText, 0, $nextInstMatch[0][1] + 10);
                 }
 
@@ -285,8 +120,6 @@ class BtebResultController extends Controller
                                     'status' => 'Passed',
                                     'referred_subjects' => null,
                                     'raw_text' => "gpa{$semDigit}: {$gpaVal}",
-                                    'center_code' => $centerCode ?? null,
-                                    'institute_name' => $instName ?? null,
                                     'exam_type' => 'regular',
                                 ];
                             }
@@ -301,8 +134,6 @@ class BtebResultController extends Controller
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => $match[0],
-                                'center_code' => $centerCode ?? null,
-                                'institute_name' => $instName ?? null,
                                 'exam_type' => 'regular',
                             ];
                         }
@@ -313,26 +144,50 @@ class BtebResultController extends Controller
                     foreach ($passedMatches as $match) {
                         $roll = $match[1];
                         $contentStr = $match[2];
-                        $gpa = null;
-                        if (preg_match('/^[2-4]\.\d{2}$/', trim($contentStr))) {
-                            $gpa = (float)trim($contentStr);
-                        } elseif (preg_match('/([2-4]\.\d{2})/', $contentStr, $gpaMatches)) {
-                            $gpa = (float)$gpaMatches[1];
+
+                        // Multi-GPA combined format in parentheses:
+                        // 885565 (gpa4: 3.13, gpa3: 3.33, gpa2: 3.05, gpa1: 3.43)
+                        $parenMultiGpa = preg_match_all('/gpa(\d)\s*:\s*([2-4]\.\d{2})/i', $contentStr, $parenSemMatches, PREG_SET_ORDER);
+
+                        if ($parenMultiGpa > 1) {
+                            foreach ($parenSemMatches as $pg) {
+                                $semDigit = $pg[1];
+                                $gpaVal = (float)$pg[2];
+                                $suffix = match ((int)$semDigit) { 1 => 'st', 2 => 'nd', 3 => 'rd', default => 'th' };
+                                $semLabel = $semDigit . $suffix;
+                                $results[] = [
+                                    'roll' => $roll,
+                                    'department' => $dept,
+                                    'semester' => $semLabel,
+                                    'regulation' => $regulation,
+                                    'holding_year' => $holdingYear,
+                                    'gpa' => $gpaVal,
+                                    'status' => 'Passed',
+                                    'referred_subjects' => null,
+                                    'raw_text' => "gpa{$semDigit}: {$gpaVal}",
+                                    'exam_type' => 'regular',
+                                ];
+                            }
+                        } else {
+                            $gpa = null;
+                            if (preg_match('/^[2-4]\.\d{2}$/', trim($contentStr))) {
+                                $gpa = (float)trim($contentStr);
+                            } elseif (preg_match('/([2-4]\.\d{2})/', $contentStr, $gpaMatches)) {
+                                $gpa = (float)$gpaMatches[1];
+                            }
+                            $results[] = [
+                                'roll' => $roll,
+                                'department' => $dept,
+                                'semester' => $chunkSemester,
+                                'regulation' => $regulation,
+                                'holding_year' => $holdingYear,
+                                'gpa' => $gpa,
+                                'status' => 'Passed',
+                                'referred_subjects' => null,
+                                'raw_text' => $match[0],
+                                'exam_type' => 'regular',
+                            ];
                         }
-                        $results[] = [
-                            'roll' => $roll,
-                            'department' => $dept,
-                            'semester' => $chunkSemester,
-                            'regulation' => $regulation,
-                            'holding_year' => $holdingYear,
-                            'gpa' => $gpa,
-                            'status' => 'Passed',
-                            'referred_subjects' => null,
-                            'raw_text' => $match[0],
-                            'center_code' => $centerCode ?? null,
-                            'institute_name' => $instName ?? null,
-                            'exam_type' => 'regular',
-                        ];
                         $lastDetectedDept = ($dept !== "Auto Detect" && $dept !== "General Technology") ? $dept : $lastDetectedDept;
                     }
 
@@ -358,8 +213,6 @@ class BtebResultController extends Controller
                                     'status' => 'Passed',
                                     'referred_subjects' => null,
                                     'raw_text' => $match[0],
-                                    'center_code' => $centerCode ?? null,
-                                    'institute_name' => $instName ?? null,
                                     'exam_type' => 'regular',
                                 ];
                             }
@@ -373,10 +226,12 @@ class BtebResultController extends Controller
                             preg_match_all('/ref_sub\s*:\s*([^\}]+)/i', $contentStr, $refSubMatch);
                             $refSubjectsRaw = $refSubMatch[1][0] ?? '';
                             preg_match_all('/\b\d{5,6}(?:\([^)]+\))?\b/', $refSubjectsRaw, $refCodeMatches);
-                            $referredSubjects = array_values(array_filter(array_map('trim', $refCodeMatches[0] ?? [])));
+                            $allReferredSubjects = array_values(array_filter(array_map('trim', $refCodeMatches[0] ?? [])));
 
-                            $inferredDept = $this->detectDeptFromSubjects($referredSubjects, '');
+                            $inferredDept = $this->detectDeptFromSubjects($allReferredSubjects, '');
                             $studentDept = $inferredDept !== '' ? $inferredDept : $dept;
+
+                            $semesterMap = \App\Utils\BtebSubjectSemesterMap::splitBySemester($allReferredSubjects, $studentDept);
 
                             foreach ($multiGpaMatches as $gpaMatch) {
                                 $semDigit = $gpaMatch[1];
@@ -385,6 +240,7 @@ class BtebResultController extends Controller
                                 $semLabel = $semDigit . $suffix;
 
                                 if (strtolower($semValue) === 'ref') {
+                                    $semSubjects = $semesterMap[$semLabel] ?? [];
                                     $results[] = [
                                         'roll' => $roll,
                                         'department' => $studentDept,
@@ -393,10 +249,8 @@ class BtebResultController extends Controller
                                         'holding_year' => $holdingYear,
                                         'gpa' => null,
                                         'status' => 'Referred',
-                                        'referred_subjects' => $referredSubjects,
-                                        'raw_text' => "gpa{$semDigit}: ref, ref_sub: " . implode(', ', $referredSubjects),
-                                        'center_code' => $centerCode ?? null,
-                                        'institute_name' => $instName ?? null,
+                                        'referred_subjects' => !empty($semSubjects) ? $semSubjects : $allReferredSubjects,
+                                        'raw_text' => "gpa{$semDigit}: ref, ref_sub: " . implode(', ', !empty($semSubjects) ? $semSubjects : $allReferredSubjects),
                                         'exam_type' => 'regular',
                                     ];
                                 } else {
@@ -410,38 +264,58 @@ class BtebResultController extends Controller
                                         'status' => 'Passed',
                                         'referred_subjects' => null,
                                         'raw_text' => "gpa{$semDigit}: {$semValue}",
-                                        'center_code' => $centerCode ?? null,
-                                        'institute_name' => $instName ?? null,
                                         'exam_type' => 'regular',
                                     ];
                                 }
                             }
                         } else {
                             preg_match_all('/\b\d{5,6}(?:\([^)]+\))?\b/', $contentStr, $codeMatches);
-                            $referredSubjects = array_filter(array_map('trim', $codeMatches[0] ?? []));
+                            $allCodes = array_filter(array_map('trim', $codeMatches[0] ?? []));
                             $gpa = null;
-                            if (preg_match('/([2-4]\.\d{2})/', $contentStr, $gpaMatches)) {
+                            if ($chunkSemDigit !== null && preg_match('/gpa' . $chunkSemDigit . '\s*:\s*([2-4]\.\d{2})/i', $contentStr, $gpaMatches)) {
+                                $gpa = (float)$gpaMatches[1];
+                            } elseif (preg_match('/([2-4]\.\d{2})/', $contentStr, $gpaMatches)) {
                                 $gpa = (float)$gpaMatches[1];
                             }
-                            $results[] = [
-                                'roll' => $roll,
-                                'department' => $dept,
-                                'semester' => $chunkSemester,
-                                'regulation' => $regulation,
-                                'holding_year' => $holdingYear,
-                                'gpa' => $gpa,
-                                'status' => 'Referred',
-                                'referred_subjects' => array_values($referredSubjects),
-                                'raw_text' => $match[0],
-                                'center_code' => $centerCode ?? null,
-                                'institute_name' => $instName ?? null,
-                                'exam_type' => 'regular',
-                            ];
+
+                            $inferredDept = $this->detectDeptFromSubjects(array_values($allCodes), '');
+                            $studentDept = $inferredDept !== '' ? $inferredDept : $dept;
+
+                            $referredSubjects = array_values(array_filter($allCodes, function ($code) {
+                                return preg_match('/^\d{5,6}$/', $code);
+                            }));
+
+                            if ($gpa !== null) {
+                                $results[] = [
+                                    'roll' => $roll,
+                                    'department' => $studentDept,
+                                    'semester' => $chunkSemester,
+                                    'regulation' => $regulation,
+                                    'holding_year' => $holdingYear,
+                                    'gpa' => $gpa,
+                                    'status' => 'Passed',
+                                    'referred_subjects' => null,
+                                    'raw_text' => $match[0],
+                                    'exam_type' => 'regular',
+                                ];
+                            } else {
+                                $results[] = [
+                                    'roll' => $roll,
+                                    'department' => $studentDept,
+                                    'semester' => $chunkSemester,
+                                    'regulation' => $regulation,
+                                    'holding_year' => $holdingYear,
+                                    'gpa' => null,
+                                    'status' => 'Referred',
+                                    'referred_subjects' => $referredSubjects,
+                                    'raw_text' => $match[0],
+                                    'exam_type' => 'regular',
+                                ];
+                            }
                         }
                         $lastDetectedDept = ($dept !== "Auto Detect" && $dept !== "General Technology") ? $dept : $lastDetectedDept;
                     }
                 }
-            }
             }
         }
 
@@ -449,12 +323,7 @@ class BtebResultController extends Controller
         try {
             foreach ($results as $result) {
                 BtebResult::updateOrCreate(
-                    [
-                        'roll' => $result['roll'],
-                        'semester' => $result['semester'],
-                        'regulation' => $result['regulation'],
-                        'exam_type' => $result['exam_type'] ?? 'regular',
-                    ],
+                    ['roll' => $result['roll'], 'semester' => $result['semester'], 'regulation' => $result['regulation']],
                     [
                         'center_code' => $result['center_code'] ?? null,
                         'institute_name' => $result['institute_name'] ?? null,
@@ -464,6 +333,7 @@ class BtebResultController extends Controller
                         'status' => $result['status'],
                         'referred_subjects' => $result['referred_subjects'],
                         'raw_text' => $result['raw_text'],
+                        'exam_type' => $result['exam_type'] ?? 'regular',
                     ]
                 );
             }
@@ -685,4 +555,4 @@ class BtebResultController extends Controller
         arsort($counts);
         return (string) array_key_first($counts);
     }
-}
+} }

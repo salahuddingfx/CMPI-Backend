@@ -15,6 +15,9 @@ use App\Models\Blog;
 use App\Models\GalleryAlbum;
 use App\Models\StudentResource;
 use App\Models\Faq;
+use App\Models\User;
+use App\Models\Bill;
+use App\Models\BtebResult;
 use Illuminate\Http\Request;
 
 class InstituteController extends Controller
@@ -95,10 +98,37 @@ class InstituteController extends Controller
             ->orderBy('month')
             ->get();
 
+        $studentsByDept = User::where('role', 'student')
+            ->selectRaw('department, COUNT(*) as count')
+            ->whereNotNull('department')
+            ->groupBy('department')
+            ->orderByDesc('count')
+            ->get();
+
+        $btebByDept = BtebResult::selectRaw('department, COUNT(*) as count')
+            ->whereNotNull('department')
+            ->groupBy('department')
+            ->orderByDesc('count')
+            ->get();
+
+        $btebBySemester = BtebResult::selectRaw('semester, COUNT(*) as count')
+            ->whereNotNull('semester')
+            ->groupBy('semester')
+            ->orderBy('semester')
+            ->get();
+
+        $billsByStatus = Bill::selectRaw('status, COUNT(*) as count, SUM(amount) as total')
+            ->groupBy('status')
+            ->get();
+
         return response()->json([
             'admissions' => $admissionsByMonth,
             'notices' => $noticesByMonth,
             'blogs' => $blogsByMonth,
+            'studentsByDept' => $studentsByDept,
+            'btebByDept' => $btebByDept,
+            'btebBySemester' => $btebBySemester,
+            'billsByStatus' => $billsByStatus,
         ]);
     }
 }
