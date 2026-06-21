@@ -38,6 +38,7 @@ class ProcessBtebDriveImport implements ShouldQueue
             $extractResult = $this->extractFileIds($this->driveUrl);
             $fileIds = $extractResult['ids'];
             $fileFolders = $extractResult['file_folders'];
+            $fileNames = $extractResult['file_names'] ?? [];
 
             if (empty($fileIds)) {
                 $this->importJob->update([
@@ -61,7 +62,7 @@ class ProcessBtebDriveImport implements ShouldQueue
             if (!is_dir($tmpDir)) mkdir($tmpDir, 0755, true);
 
             $this->importJob->update(['error_log' => ['phase' => 'downloading', 'processed_file_ids' => $processedIds]]);
-            $downloaded = $this->downloadParallel($remainingIds, $tmpDir, $fileFolders);
+            $downloaded = $this->downloadParallel($remainingIds, $tmpDir, $fileFolders, $fileNames);
 
             // PHASE 2: Process each PDF locally (no network = fast)
             $errors = $this->importJob->error_log['errors'] ?? [];
@@ -117,16 +118,28 @@ class ProcessBtebDriveImport implements ShouldQueue
                 'error_log' => !empty($errors) ? ['errors' => array_slice($errors, -50)] : null,
             ]);
 
+            \App\Models\Notification::create([
+                'title' => 'BTEB Result Processed',
+                'description' => "Successfully processed BTEB results import job. " . number_format($totalSaved) . " records imported.",
+                'type' => 'success',
+            ]);
+
         } catch (\Throwable $e) {
             Log::error("BTEB Drive Import failed: " . $e->getMessage());
             $this->importJob->update([
                 'status' => 'failed',
                 'error_log' => ['message' => $e->getMessage()],
             ]);
+
+            \App\Models\Notification::create([
+                'title' => 'BTEB Result Import Failed',
+                'description' => "Google Drive results import job failed: " . $e->getMessage(),
+                'type' => 'error',
+            ]);
         }
     }
 
-    private function downloadParallel(array $fileIds, string $tmpDir, array $fileFolders): array
+    private function downloadParallel(array $fileIds, string $tmpDir, array $fileFolders, array $fileNames): array
     {
         $downloaded = [];
         $batchSize = 10;
@@ -137,7 +150,12 @@ class ProcessBtebDriveImport implements ShouldQueue
             $handles = [];
 
             foreach ($chunk as $fileId) {
-                $tmpFile = $tmpDir . '/' . $fileId . '.pdf';
+                $name = $fileNames[$fileId] ?? ($fileId . '.pdf');
+                $safeName = str_replace(['/', '\\'], '_', $name);
+                if (!str_ends_with(strtolower($safeName), '.pdf')) {
+                    $safeName .= '.pdf';
+                }
+                $tmpFile = $tmpDir . '/' . $safeName;
                 $ch = curl_init();
                 curl_setopt_array($ch, [
                     CURLOPT_URL => "https://drive.google.com/uc?export=download&id={$fileId}&confirm=no_antivirus",
@@ -212,10 +230,12 @@ class ProcessBtebDriveImport implements ShouldQueue
     {
         if (!is_dir($dir)) return;
         $files = glob($dir . '/*');
-        foreach ($files as $file) {
-            if (is_file($file)) unlink($file);
+        if (is_array($files)) {
+            foreach ($files as $file) {
+                if (is_file($file)) @unlink($file);
+            }
         }
-        rmdir($dir);
+        @rmdir($dir);
     }
 
     private function downloadDriveFile(string $fileId): ?array
@@ -281,12 +301,17 @@ class ProcessBtebDriveImport implements ShouldQueue
     {
         $allIds = [];
         $fileFolders = [];
+        $fileNames = [];
         $visitedFolders = [];
-        $this->extractFileIdsRecursive($folderUrl, $allIds, $fileFolders, $visitedFolders);
-        return ['ids' => array_values(array_unique($allIds)), 'file_folders' => $fileFolders];
+        $this->extractFileIdsRecursive($folderUrl, $allIds, $fileFolders, $fileNames, $visitedFolders);
+        return [
+            'ids' => array_values(array_unique($allIds)),
+            'file_folders' => $fileFolders,
+            'file_names' => $fileNames,
+        ];
     }
 
-    private function extractFileIdsRecursive(string $folderUrl, array &$allIds, array &$fileFolders, array &$visitedFolders, string $parentFolderName = ''): void
+    private function extractFileIdsRecursive(string $folderUrl, array &$allIds, array &$fileFolders, array &$fileNames, array &$visitedFolders, string $parentFolderName = ''): void
     {
         preg_match('/folders\/([a-zA-Z0-9_-]+)/', $folderUrl, $folderMatch);
         $folderId = $folderMatch[1] ?? null;
@@ -296,6 +321,7 @@ class ProcessBtebDriveImport implements ShouldQueue
             if (isset($fileMatch[1])) {
                 $allIds[] = $fileMatch[1];
                 $fileFolders[$fileMatch[1]] = $parentFolderName;
+                $fileNames[$fileMatch[1]] = $fileMatch[1] . '.pdf';
             }
             return;
         }
@@ -350,6 +376,7 @@ class ProcessBtebDriveImport implements ShouldQueue
             } elseif ($type === 'file') {
                 $allIds[] = $id;
                 $fileFolders[$id] = $currentFolderName;
+                $fileNames[$id] = $entry['name'] ?? ($id . '.pdf');
             } else {
                 // Unknown type - try to determine by checking if it's a subfolder
                 if ($id !== $folderId && !in_array($id, $visitedFolders)) {
@@ -358,6 +385,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                     } else {
                         $allIds[] = $id;
                         $fileFolders[$id] = $currentFolderName;
+                        $fileNames[$id] = $entry['name'] ?? ($id . '.pdf');
                     }
                 }
             }
@@ -365,7 +393,7 @@ class ProcessBtebDriveImport implements ShouldQueue
 
         foreach ($subfolderIds as $subFolderId => $subFolderName) {
             $subUrl = "https://drive.google.com/drive/folders/{$subFolderId}";
-            $this->extractFileIdsRecursive($subUrl, $allIds, $fileFolders, $visitedFolders, $subFolderName);
+            $this->extractFileIdsRecursive($subUrl, $allIds, $fileFolders, $fileNames, $visitedFolders, $subFolderName);
         }
     }
 
@@ -532,8 +560,8 @@ class ProcessBtebDriveImport implements ShouldQueue
         }
 
         // Extract regulation (4-digit year like 2022, 2016, 2010)
-        if (preg_match('/(20[12]\d)/', $base, $regMatch)) {
-            $regulation = $regMatch[1];
+        if (preg_match('/20(10|16|22)/', $base, $regMatch)) {
+            $regulation = $regMatch[0];
         }
 
         return [
@@ -906,7 +934,7 @@ class ProcessBtebDriveImport implements ShouldQueue
 
                         // Filter out GPA values from referred subjects (5-6 digit codes only)
                         $referredSubjects = array_values(array_filter($allCodes, function ($code) {
-                            return preg_match('/^\d{5,6}$/', $code);
+                            return preg_match('/^\d{5,6}(?:\([^)]+\))?$/', $code);
                         }));
 
                         // If a GPA was found, this student PASSED — no referred subjects
