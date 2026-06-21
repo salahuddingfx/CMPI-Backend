@@ -59,6 +59,9 @@ Route::get('/social-links', [SocialLinkController::class, 'index']);
 Route::get('/hero-slides', [HeroSlideController::class, 'index']);
 
 Route::get('/subjects', [SubjectController::class, 'index']);
+Route::get('/subjects/lookup', [SubjectController::class, 'lookup']);
+Route::get('/subjects/detect-department', [SubjectController::class, 'detectDepartment']);
+Route::get('/subjects/dictionary', [SubjectController::class, 'dictionary']);
 
 Route::get('/class-routines', [ClassRoutineController::class, 'index']);
 Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);
