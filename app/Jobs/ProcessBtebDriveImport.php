@@ -58,6 +58,7 @@ class ProcessBtebDriveImport implements ShouldQueue
             $processedCount = 0;
 
             foreach ($fileIds as $fileId) {
+                    $fileName = $fileId;
                     try {
                         $dl = $this->downloadDriveFile($fileId);
                         if ($dl === null) {
@@ -530,7 +531,7 @@ class ProcessBtebDriveImport implements ShouldQueue
     private function splitByInstitute(string $pageText): array
     {
         // Find all center code positions: 5-digit code, optionally followed by " - Institute Name"
-        preg_match_all('/\b(\d{5})\s*(?:-\s*([^\n]*))?/', $pageText, $codeMatches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
+        preg_match_all('/(?:^|\n)(\d{5})\s*-\s*([^\n]*)/m', $pageText, $codeMatches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
 
         if (empty($codeMatches)) {
             return [['text' => $pageText, 'center_code' => null, 'institute_name' => null]];
