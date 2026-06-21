@@ -120,4 +120,63 @@ class SubjectController extends Controller
 
         return response()->json($result);
     }
+
+    public function store(Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+
+        $data = $request->validate([
+            'department' => 'required|string',
+            'semester' => 'required|string',
+            'subject_code' => 'required|string',
+            'subject_name' => 'required|string',
+            'credit' => 'required|numeric',
+            'technology_code' => 'nullable|string',
+            'technology_name' => 'nullable|string',
+            'theory_marks' => 'nullable|numeric',
+            'practical_marks' => 'nullable|numeric',
+            'total_marks' => 'nullable|numeric',
+        ]);
+
+        $subject = Subject::create($data);
+
+        return response()->json($subject, 201);
+    }
+
+    public function update(Request $request, Subject $subject)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+
+        $data = $request->validate([
+            'department' => 'sometimes|string',
+            'semester' => 'sometimes|string',
+            'subject_code' => 'sometimes|string',
+            'subject_name' => 'sometimes|string',
+            'credit' => 'sometimes|numeric',
+            'technology_code' => 'sometimes|nullable|string',
+            'technology_name' => 'sometimes|nullable|string',
+            'theory_marks' => 'sometimes|nullable|numeric',
+            'practical_marks' => 'sometimes|nullable|numeric',
+            'total_marks' => 'sometimes|nullable|numeric',
+        ]);
+
+        $subject->update($data);
+
+        return response()->json($subject);
+    }
+
+    public function destroy(Request $request, Subject $subject)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized. Admin role required.'], 403);
+        }
+
+        $subject->delete();
+
+        return response()->json(['message' => 'Subject deleted successfully']);
+    }
 }
