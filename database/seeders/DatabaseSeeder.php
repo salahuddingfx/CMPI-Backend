@@ -19,6 +19,10 @@ use App\Models\Email;
 use App\Models\Course;
 use App\Models\CourseResult;
 use App\Models\Bill;
+use App\Models\HeroSlide;
+use App\Models\SocialLink;
+use App\Models\Admission;
+use App\Models\ClassRoutine;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
@@ -162,5 +166,124 @@ class DatabaseSeeder extends Seeder
         foreach ($emails as $email) {
             Email::create($email);
         }
+
+        // Hero Slides
+        HeroSlide::create([
+            'eyebrow' => 'Welcome to CMPI',
+            'title' => 'Cox\'s Bazar Model Polytechnic Institute',
+            'description' => 'Empowering diploma engineers with practical skills and industry-ready training since 1985.',
+            'cta_label' => 'Explore Programs',
+            'cta_href' => '/academics',
+            'panel_title' => 'Why CMPI?',
+            'panel_description' => 'Hands-on technical education with experienced faculty, modern labs, and industry partnerships.',
+            'stats' => [['label' => 'Departments', 'value' => '3'], ['label' => 'Faculty', 'value' => '86+']],
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+        HeroSlide::create([
+            'eyebrow' => 'Admission Open 2026',
+            'title' => 'Apply Now for Diploma Programs',
+            'description' => 'Join Civil Technology, Computer Science & Technology, or Electrical Technology. Limited seats available.',
+            'cta_label' => 'Apply Now',
+            'cta_href' => '/admission',
+            'secondary_label' => 'View Eligibility',
+            'secondary_href' => '/academics',
+            'panel_title' => '2026-2027 Session',
+            'panel_description' => 'Online and offline applications accepted. Prepare academic transcripts, citizenship documents, and photographs.',
+            'stats' => [['label' => 'Seats', 'value' => '180'], ['label' => 'Deadline', 'value' => 'Jul 31']],
+            'sort_order' => 2,
+            'is_active' => true,
+        ]);
+        HeroSlide::create([
+            'eyebrow' => 'Campus Life',
+            'title' => 'Learn Beyond the Classroom',
+            'description' => 'Discover labs, workshops, clubs, and events that shape your polytechnic experience.',
+            'cta_label' => 'View Gallery',
+            'cta_href' => '/gallery',
+            'panel_title' => 'Student Activities',
+            'panel_description' => 'Technical clubs, sports events, cultural programs, and community service initiatives.',
+            'stats' => [['label' => 'Clubs', 'value' => '12'], ['label' => 'Events/yr', 'value' => '20+']],
+            'sort_order' => 3,
+            'is_active' => true,
+        ]);
+
+        // Social Links
+        SocialLink::create(['platform' => 'facebook', 'url' => 'https://facebook.com/cmpi.edu.bd', 'sort_order' => 1]);
+        SocialLink::create(['platform' => 'youtube', 'url' => 'https://youtube.com/@cmpi', 'sort_order' => 2]);
+        SocialLink::create(['platform' => 'email', 'url' => 'mailto:info@cmpi.edu.bd', 'sort_order' => 3]);
+        SocialLink::create(['platform' => 'phone', 'url' => 'tel:+880341000000', 'sort_order' => 4]);
+
+        // Admissions (dummy applications)
+        Admission::create([
+            'application_id' => 'ADM-2026-001',
+            'name' => 'Tanvir Ahmed',
+            'email' => 'tanvir@example.com',
+            'phone' => '+880 1712-345678',
+            'department' => 'Computer Science & Technology',
+            'session' => '2026-2027',
+            'ssc_gpa' => '4.80',
+            'hsc_gpa' => '4.20',
+            'father_name' => 'Md. Rafiq Ahmed',
+            'mother_name' => 'Rashida Begum',
+            'address' => 'Ukhia, Cox\'s Bazar',
+            'blood_group' => 'B+',
+            'status' => 'pending',
+        ]);
+        Admission::create([
+            'application_id' => 'ADM-2026-002',
+            'name' => 'Sumaiya Khatun',
+            'email' => 'sumaiya@example.com',
+            'phone' => '+880 1812-987654',
+            'department' => 'Civil Technology',
+            'session' => '2026-2027',
+            'ssc_gpa' => '4.50',
+            'hsc_gpa' => '3.90',
+            'father_name' => 'Abdul Karim',
+            'mother_name' => 'Rahima Khatun',
+            'address' => 'Maheshkhali, Cox\'s Bazar',
+            'blood_group' => 'A+',
+            'status' => 'approved',
+        ]);
+        Admission::create([
+            'application_id' => 'ADM-2026-003',
+            'name' => 'Rakibul Hasan',
+            'email' => 'rakib@example.com',
+            'phone' => '+880 1912-555123',
+            'department' => 'Electrical Technology',
+            'session' => '2026-2027',
+            'ssc_gpa' => '4.20',
+            'hsc_gpa' => '3.80',
+            'father_name' => 'Abdur Rashid',
+            'mother_name' => 'Salma Begum',
+            'address' => 'Chakaria, Cox\'s Bazar',
+            'blood_group' => 'O+',
+            'status' => 'pending',
+        ]);
+
+        // Class Routines
+        ClassRoutine::create([
+            'department' => 'Computer Science & Technology',
+            'semester' => '4th',
+            'academic_year' => '2026',
+            'title' => 'CST 4th Semester Routine - Summer 2026',
+            'pdf_path' => '/routines/cst-4th-summer-2026.pdf',
+            'original_name' => 'CST_4th_Semester_Routine_2026.pdf',
+        ]);
+        ClassRoutine::create([
+            'department' => 'Civil Technology',
+            'semester' => '4th',
+            'academic_year' => '2026',
+            'title' => 'Civil 4th Semester Routine - Summer 2026',
+            'pdf_path' => '/routines/civil-4th-summer-2026.pdf',
+            'original_name' => 'Civil_4th_Semester_Routine_2026.pdf',
+        ]);
+        ClassRoutine::create([
+            'department' => 'Electrical Technology',
+            'semester' => '2nd',
+            'academic_year' => '2026',
+            'title' => 'EEE 2nd Semester Routine - Summer 2026',
+            'pdf_path' => '/routines/eee-2nd-summer-2026.pdf',
+            'original_name' => 'EEE_2nd_Semester_Routine_2026.pdf',
+        ]);
     }
 }

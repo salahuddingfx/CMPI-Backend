@@ -25,7 +25,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('auth-token', now()->addHours(24))->plainTextToken;
+        $token = $user->createToken('auth-token')->expiresAt(now()->addHours(24))->plainTextToken;
 
         return response()->json([
             'user' => $user,
