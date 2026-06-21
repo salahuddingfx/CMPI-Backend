@@ -112,8 +112,8 @@ class StudentController extends Controller
             }
         }
 
-        // Fallback/Local email lookup
-        $dbEmail = Email::where('id', $id)->first();
+        // Fallback/Local email lookup - ensure email belongs to user
+        $dbEmail = Email::where('id', $id)->where('user_id', $user->id)->first();
         return response()->json([
             'body' => $dbEmail ? $dbEmail->body : 'Email body not found.'
         ]);
@@ -268,7 +268,7 @@ class StudentController extends Controller
             User::create([
                 'name' => $name,
                 'email' => $email,
-                'password' => \Illuminate\Support\Facades\Hash::make($data['password'] ?? 'student123'),
+                'password' => \Illuminate\Support\Facades\Hash::make($data['password'] ?? \Illuminate\Support\Str::random(16)),
                 'student_id' => $studentId,
                 'department' => $data['department'] ?? null,
                 'semester' => $data['semester'] ?? '1st',
