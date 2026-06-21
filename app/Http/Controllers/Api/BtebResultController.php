@@ -195,7 +195,7 @@ class BtebResultController extends Controller
             $pageText = $page->getText();
 
             // Split page into institute sections by center code boundaries
-            preg_match_all('/\b(\d{5})\s*(?:-\s*([^\n]*))?/', $pageText, $codeMatches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
+            preg_match_all('/(?:^|\n)(\d{5})\s*-\s*([^\n]*)/m', $pageText, $codeMatches, PREG_OFFSET_CAPTURE | PREG_SET_ORDER);
 
             if (empty($codeMatches)) {
                 $sections = [['text' => $pageText, 'center_code' => null, 'institute_name' => null]];
