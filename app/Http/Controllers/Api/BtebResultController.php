@@ -482,6 +482,41 @@ class BtebResultController extends Controller
         }
     }
 
+    public function stats(Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $totalResults = BtebResult::count();
+        $totalRolls = BtebResult::distinct('roll')->count();
+        $departments = BtebResult::select('department')->distinct()->pluck('department');
+        $semesters = BtebResult::select('semester')->distinct()->pluck('semester');
+
+        $importJobs = ImportJob::orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(fn($job) => [
+                'id' => $job->id,
+                'status' => $job->status,
+                'total_files' => $job->total_files,
+                'processed_files' => $job->processed_files,
+                'total_results' => $job->total_results,
+                'file_details' => $job->error_log['file_details'] ?? [],
+                'errors' => $job->error_log['errors'] ?? [],
+                'created_at' => $job->created_at,
+                'updated_at' => $job->updated_at,
+            ]);
+
+        return response()->json([
+            'total_results' => $totalResults,
+            'total_rolls' => $totalRolls,
+            'departments' => $departments,
+            'semesters' => $semesters,
+            'import_jobs' => $importJobs,
+        ]);
+    }
+
     private function splitBySemesterHeader(string $text, string $defaultSemester): array
     {
         $headerPattern = '/(?:^|\n)\s*(?:(\d)(?:st|nd|rd|th)\s*(?:Semester|Sem\.?)|(?:Semester|Sem\.?)\s*(\d)|(?:SEM)\s*[-–—]\s*(I{1,3}V?|IX|V?I{0,3}))\b/i';
