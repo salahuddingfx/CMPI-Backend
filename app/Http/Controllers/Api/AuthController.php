@@ -25,10 +25,7 @@ class AuthController extends Controller
             ]);
         }
 
-        // Cache the password securely for IMAP single-sign-on
-        \Illuminate\Support\Facades\Cache::put("user_pass_" . $user->id, encrypt($request->password), now()->addHours(2));
-
-        $token = $user->createToken('auth-token')->plainTextToken;
+        $token = $user->createToken('auth-token', now()->addHours(24))->plainTextToken;
 
         return response()->json([
             'user' => $user,
@@ -52,7 +49,7 @@ class AuthController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:8|regex:/[A-Z]/|regex:/[a-z]/|regex:/[0-9]/',
             'department' => 'nullable|string',
             'student_id' => 'nullable|string|unique:users,student_id',
             'semester' => 'nullable|string',
