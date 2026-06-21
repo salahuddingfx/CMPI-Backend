@@ -23,7 +23,10 @@ echo "Job ID: " . $job->id . PHP_EOL;
 echo "Starting import..." . PHP_EOL;
 
 try {
-    (new ProcessBtebDriveImport($job, $job->drive_url, $job->semester, $job->regulation, $job->holding_year))->handle();
+    set_time_limit(0);
+    ini_set('max_execution_time', 0);
+    $import = new ProcessBtebDriveImport($job, $job->drive_url, $job->semester, $job->regulation, $job->holding_year);
+    $import->handle();
     echo "Import completed!" . PHP_EOL;
 } catch (\Throwable $e) {
     echo "Error: " . $e->getMessage() . PHP_EOL;
