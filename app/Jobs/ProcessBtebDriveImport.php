@@ -47,15 +47,19 @@ class ProcessBtebDriveImport implements ShouldQueue
                 return;
             }
 
-            $this->importJob->update(['total_files' => count($fileIds)]);
+            // Resume support: skip already processed files
+            $processedIds = $this->importJob->error_log['processed_file_ids'] ?? [];
+            $fileIds = array_values(array_filter($fileIds, fn($id) => !in_array($id, $processedIds)));
+            $totalFiles = count($processedIds) + count($fileIds);
+            $this->importJob->update(['total_files' => $totalFiles]);
 
             // Detect holding year from folder name if not provided
             $holdingYear = $this->holdingYear ?? $this->detectHoldingYearFromUrl($this->driveUrl) ?? date('Y');
 
-            $errors = [];
+            $errors = $this->importJob->error_log['errors'] ?? [];
             $pdfParser = new Parser();
-            $processedCount = 0;
-            $totalSaved = 0;
+            $processedCount = count($processedIds);
+            $totalSaved = $this->importJob->total_results ?? 0;
 
             foreach ($fileIds as $fileId) {
                     $fileName = $fileId;
@@ -137,18 +141,19 @@ class ProcessBtebDriveImport implements ShouldQueue
                     }
 
                     $processedCount++;
-                    if ($processedCount % 5 === 0 || $processedCount === count($fileIds)) {
-                        $this->importJob->update([
-                            'processed_files' => $processedCount,
-                            'total_results' => $totalSaved,
-                        ]);
-                    }
+                    // Save progress after every file for resume support
+                    $processedIds[] = $fileId;
+                    $this->importJob->update([
+                        'processed_files' => $processedCount,
+                        'total_results' => $totalSaved,
+                        'error_log' => ['errors' => array_slice($errors, -50), 'processed_file_ids' => $processedIds],
+                    ]);
             }
 
             $this->importJob->update([
                 'status' => 'completed',
                 'total_results' => $totalSaved,
-                'error_log' => !empty($errors) ? $errors : null,
+                'error_log' => !empty($errors) ? ['errors' => array_slice($errors, -50)] : null,
             ]);
 
         } catch (\Throwable $e) {

@@ -60,8 +60,11 @@ class ImportBtebResults extends Command
         $this->info("Processed: {$job->processed_files}");
         $this->info("Results imported: {$job->total_results}");
 
-        if ($job->error_log) {
-            $this->warn("Errors: " . json_encode($job->error_log));
+        if ($job->error_log && isset($job->error_log['errors'])) {
+            $this->warn("Errors: " . count($job->error_log['errors']));
+            foreach (array_slice($job->error_log['errors'], 0, 10) as $err) {
+                $this->warn("  - {$err}");
+            }
         }
     }
 }
