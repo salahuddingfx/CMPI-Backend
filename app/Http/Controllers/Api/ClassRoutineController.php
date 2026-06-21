@@ -55,6 +55,12 @@ class ClassRoutineController extends Controller
             ]
         );
 
+        \App\Models\Notification::create([
+            'title' => 'Routine Published',
+            'description' => "Exam routine for {$routine->department} ({$routine->semester}) has been published: {$routine->title}.",
+            'type' => 'info',
+        ]);
+
         return response()->json(['routine' => $routine]);
     }
 
@@ -70,6 +76,50 @@ class ClassRoutineController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . $routine->original_name . '"',
         ]);
+    }
+
+    public function update(Request $request, ClassRoutine $routine)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'pdf' => 'nullable|file|mimes:pdf|max:20480',
+            'department' => 'required|string',
+            'semester' => 'required|string',
+            'academic_year' => 'required|string',
+            'title' => 'required|string',
+        ]);
+
+        if ($request->hasFile('pdf')) {
+            $fullPath = Storage::disk('local')->path($routine->pdf_path);
+            if (file_exists($fullPath)) {
+                unlink($fullPath);
+            }
+
+            $file = $request->file('pdf');
+            $filename = 'routine_' . $request->department . '_' . $request->semester . '_' . time() . '.pdf';
+            $path = $file->storeAs('routines', $filename, 'local');
+
+            $routine->update([
+                'title' => $request->title,
+                'department' => $request->department,
+                'semester' => $request->semester,
+                'academic_year' => $request->academic_year,
+                'pdf_path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+            ]);
+        } else {
+            $routine->update([
+                'title' => $request->title,
+                'department' => $request->department,
+                'semester' => $request->semester,
+                'academic_year' => $request->academic_year,
+            ]);
+        }
+
+        return response()->json(['routine' => $routine]);
     }
 
     public function destroy(Request $request, ClassRoutine $routine)
