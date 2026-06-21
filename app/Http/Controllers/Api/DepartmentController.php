@@ -48,6 +48,7 @@ class DepartmentController extends Controller
             'labs' => 'nullable|array',
             'achievements' => 'nullable|array',
             'career_opportunities' => 'nullable|array',
+            'image' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -74,6 +75,7 @@ class DepartmentController extends Controller
             'labs' => 'nullable|array',
             'achievements' => 'nullable|array',
             'career_opportunities' => 'nullable|array',
+            'image' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
