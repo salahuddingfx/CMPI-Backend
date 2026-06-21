@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\ClassRoutineController;
 use App\Http\Controllers\Api\SocialLinkController;
 use App\Http\Controllers\Api\HeroSlideController;
 use App\Http\Controllers\Api\SubjectController;
+use App\Http\Controllers\Api\SystemStatusController;
+use App\Http\Controllers\Api\NotificationController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -32,6 +34,7 @@ Route::get('/notices/{notice}', [NoticeController::class, 'show']);
 
 Route::get('/events', [EventController::class, 'index']);
 Route::get('/events/{event}', [EventController::class, 'show']);
+Route::post('/events/{event}/register', [EventController::class, 'register']);
 
 Route::get('/blogs', [BlogController::class, 'index']);
 Route::get('/blogs/{slug}', [BlogController::class, 'bySlug']);
@@ -106,17 +109,25 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/bteb-results/upload-pdf', [BtebResultController::class, 'uploadPdf']);
         Route::post('/bteb-results/import-drive', [BtebResultController::class, 'importFromDrive']);
         Route::get('/bteb-results/import-status/{jobId}', [BtebResultController::class, 'importStatus']);
+        Route::get('/bteb-results/stats', [BtebResultController::class, 'stats']);
 
         // Institute results
         Route::post('/institute-results/upload-csv', [InstituteResultController::class, 'uploadCsv']);
         Route::post('/institute-results/upload-pdf', [InstituteResultController::class, 'uploadPdf']);
         Route::post('/institute-results/manual', [InstituteResultController::class, 'manual']);
+        Route::put('/institute-results/{id}', [InstituteResultController::class, 'update']);
         Route::delete('/institute-results/{id}', [InstituteResultController::class, 'destroy']);
         Route::get('/institute-results/stats', [InstituteResultController::class, 'stats']);
 
         // Class routines
         Route::post('/class-routines/upload', [ClassRoutineController::class, 'upload']);
+        Route::put('/class-routines/{routine}', [ClassRoutineController::class, 'update']);
         Route::delete('/class-routines/{routine}', [ClassRoutineController::class, 'destroy']);
+
+        // Subjects
+        Route::post('/subjects', [SubjectController::class, 'store']);
+        Route::put('/subjects/{subject}', [SubjectController::class, 'update']);
+        Route::delete('/subjects/{subject}', [SubjectController::class, 'destroy']);
 
         // Admin CRUD operations
         Route::post('/notices', [NoticeController::class, 'store']);
@@ -157,5 +168,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/hero-slides', [HeroSlideController::class, 'store']);
         Route::put('/hero-slides/{heroSlide}', [HeroSlideController::class, 'update']);
         Route::delete('/hero-slides/{heroSlide}', [HeroSlideController::class, 'destroy']);
+ 
+        // System status
+        Route::get('/system/status', [SystemStatusController::class, 'getStatus']);
+
+        // Notifications
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/mark-read', [NotificationController::class, 'markAllRead']);
+        Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markRead']);
     });
 });
