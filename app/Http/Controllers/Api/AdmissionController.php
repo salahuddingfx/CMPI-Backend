@@ -145,7 +145,7 @@ class AdmissionController extends Controller
                 User::create([
                     'name' => $admission->name,
                     'email' => $admission->email,
-                    'password' => Hash::make('student123'),
+                    'password' => Hash::make(\Illuminate\Support\Str::random(16)),
                     'department' => $admission->department,
                     'student_id' => $studentId,
                     'semester' => '1st',
