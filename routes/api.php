@@ -23,6 +23,9 @@ use App\Http\Controllers\Api\HeroSlideController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\SystemStatusController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\GalleryAlbumController;
+use App\Http\Controllers\Api\CookieConsentController;
+use App\Http\Controllers\Api\VisitTrackerController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -66,6 +69,13 @@ Route::get('/subjects/lookup', [SubjectController::class, 'lookup']);
 Route::get('/subjects/detect-department', [SubjectController::class, 'detectDepartment']);
 Route::get('/subjects/dictionary', [SubjectController::class, 'dictionary']);
 
+Route::get('/gallery-albums', [GalleryAlbumController::class, 'index']);
+Route::get('/gallery-albums/{id}', [GalleryAlbumController::class, 'show']);
+
+Route::post('/cookie-consents', [CookieConsentController::class, 'store']);
+
+Route::post('/visit/track', [VisitTrackerController::class, 'track']);
+
 Route::get('/class-routines', [ClassRoutineController::class, 'index']);
 Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);
 
@@ -82,6 +92,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/dashboard/profile', [StudentController::class, 'updateProfile']);
     Route::get('/dashboard/emails', [StudentController::class, 'emails']);
     Route::get('/dashboard/emails/{id}/body', [StudentController::class, 'emailBody']);
+
+    Route::post('/upload', [FileUploadController::class, 'upload']);
+    Route::post('/upload/multiple', [FileUploadController::class, 'uploadMultiple']);
 
     // Bills (admin)
     Route::middleware('admin')->group(function () {
@@ -101,9 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/student-transcript/{roll}', [ReportController::class, 'studentTranscriptData']);
         Route::get('/reports/student-transcript/{roll}/download', [ReportController::class, 'studentTranscript']);
 
-        // File uploads
-        Route::post('/upload', [FileUploadController::class, 'upload']);
-        Route::post('/upload/multiple', [FileUploadController::class, 'uploadMultiple']);
+        // File uploads — keep delete under admin
         Route::delete('/upload', [FileUploadController::class, 'destroy']);
         Route::post('/bteb-results/import', [BtebResultController::class, 'import']);
         Route::post('/bteb-results/upload-pdf', [BtebResultController::class, 'uploadPdf']);
@@ -169,6 +180,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/hero-slides/{heroSlide}', [HeroSlideController::class, 'update']);
         Route::delete('/hero-slides/{heroSlide}', [HeroSlideController::class, 'destroy']);
  
+        // Gallery
+        Route::post('/gallery-albums', [GalleryAlbumController::class, 'store']);
+        Route::put('/gallery-albums/{id}', [GalleryAlbumController::class, 'update']);
+        Route::delete('/gallery-albums/{id}', [GalleryAlbumController::class, 'destroy']);
+        Route::post('/gallery-albums/{id}/images', [GalleryAlbumController::class, 'uploadImages']);
+        Route::delete('/gallery-albums/{albumId}/images/{imageId}', [GalleryAlbumController::class, 'deleteImage']);
+
+        // Cookie consents
+        Route::get('/cookie-consents', [CookieConsentController::class, 'index']);
+        Route::get('/cookie-consents/stats', [CookieConsentController::class, 'stats']);
+
+        // Visit tracker
+        Route::get('/visits', [VisitTrackerController::class, 'index']);
+        Route::get('/visits/stats', [VisitTrackerController::class, 'stats']);
+
         // System status
         Route::get('/system/status', [SystemStatusController::class, 'getStatus']);
 
