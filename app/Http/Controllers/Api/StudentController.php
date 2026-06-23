@@ -54,6 +54,7 @@ class StudentController extends Controller
             'guardian' => 'sometimes|string',
             'blood_group' => 'sometimes|string|nullable',
             'address' => 'sometimes|string',
+            'avatar' => 'nullable|string',
         ]);
 
         $user->update($data);
