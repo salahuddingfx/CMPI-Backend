@@ -11,7 +11,7 @@ class NoticeController extends Controller
 {
     public function index()
     {
-        return Notice::orderByDesc('date')->get();
+        return Notice::orderByDesc('date')->paginate(15);
     }
 
     public function show(Notice $notice)
