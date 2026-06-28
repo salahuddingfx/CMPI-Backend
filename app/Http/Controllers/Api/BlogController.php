@@ -10,7 +10,7 @@ class BlogController extends Controller
 {
     public function index()
     {
-        return Blog::orderByDesc('date')->get();
+        return Blog::orderByDesc('date')->paginate(15);
     }
 
     public function show(Blog $blog)
