@@ -26,9 +26,15 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\GalleryAlbumController;
 use App\Http\Controllers\Api\CookieConsentController;
 use App\Http\Controllers\Api\VisitTrackerController;
+use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\AcademicCalendarController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+
+// Password reset (public, throttled)
+Route::post('/forgot-password', [PasswordResetController::class, 'sendResetLink'])->middleware('throttle:5,1');
+Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:5,1');
 
 Route::get('/institute', [InstituteController::class, 'index']);
 
@@ -48,7 +54,7 @@ Route::get('/departments/{slug}', [DepartmentController::class, 'bySlug']);
 Route::get('/faculty', [FacultyController::class, 'index']);
 Route::get('/faculty/{faculty}', [FacultyController::class, 'show']);
 
-Route::get('/search', SearchController::class);
+Route::get('/search', SearchController::class)->middleware('throttle:30,1');
 
 Route::post('/admissions', [AdmissionController::class, 'store']);
 Route::post('/admissions/track', [AdmissionController::class, 'track']);
@@ -77,6 +83,10 @@ Route::post('/cookie-consents', [CookieConsentController::class, 'store']);
 Route::post('/visit/track', [VisitTrackerController::class, 'track']);
 
 Route::get('/class-routines', [ClassRoutineController::class, 'index']);
+
+// Academic Calendar (public)
+Route::get('/academic-calendar', [AcademicCalendarController::class, 'index']);
+Route::get('/academic-calendar/{id}', [AcademicCalendarController::class, 'show']);
 Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -202,5 +212,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/mark-read', [NotificationController::class, 'markAllRead']);
         Route::post('/notifications/{id}/mark-read', [NotificationController::class, 'markRead']);
+
+        // Feedback moderation
+        Route::patch('/feedbacks/{feedback}/approve', [FeedbackController::class, 'approve']);
+        Route::patch('/feedbacks/{feedback}/reject', [FeedbackController::class, 'reject']);
+        Route::delete('/feedbacks/{feedback}', [FeedbackController::class, 'destroy']);
+
+        // Academic Calendar (admin)
+        Route::post('/academic-calendar', [AcademicCalendarController::class, 'store']);
+        Route::put('/academic-calendar/{id}', [AcademicCalendarController::class, 'update']);
+        Route::delete('/academic-calendar/{id}', [AcademicCalendarController::class, 'destroy']);
     });
 });
