@@ -9,7 +9,7 @@ class FacultyController extends Controller
 {
     public function index()
     {
-        return Faculty::all();
+        return Faculty::orderBy('name')->paginate(20);
     }
 
     public function show(Faculty $faculty)
