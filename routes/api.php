@@ -23,11 +23,12 @@ use App\Http\Controllers\Api\HeroSlideController;
 use App\Http\Controllers\Api\SubjectController;
 use App\Http\Controllers\Api\SystemStatusController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\AcademicCalendarController;
+use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\AdminMessageController;
 use App\Http\Controllers\Api\GalleryAlbumController;
 use App\Http\Controllers\Api\CookieConsentController;
 use App\Http\Controllers\Api\VisitTrackerController;
-use App\Http\Controllers\Api\PasswordResetController;
-use App\Http\Controllers\Api\AcademicCalendarController;
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
@@ -88,6 +89,7 @@ Route::get('/class-routines', [ClassRoutineController::class, 'index']);
 Route::get('/academic-calendar', [AcademicCalendarController::class, 'index']);
 Route::get('/academic-calendar/{id}', [AcademicCalendarController::class, 'show']);
 Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);
+Route::get('/admin-messages', [AdminMessageController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -178,6 +180,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [StudentController::class, 'storeUser']);
         Route::put('/users/{user}', [StudentController::class, 'updateUser']);
         Route::delete('/users/{user}', [StudentController::class, 'destroyUser']);
+
+        Route::put('/admin-messages/{id}', [AdminMessageController::class, 'update']);
         Route::post('/users/bulk-import', [StudentController::class, 'bulkImport']);
 
         Route::post('/social-links', [SocialLinkController::class, 'store']);
