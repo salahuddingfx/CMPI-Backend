@@ -28,9 +28,9 @@ class User extends Authenticatable
 
         switch ($this->sub_role) {
             case 'academic_editor':
-                return in_array($module, ['subjects', 'routines', 'results', 'departments']);
+                return in_array($module, ['subjects', 'routines', 'results', 'departments', 'academic_calendar']);
             case 'content_manager':
-                return in_array($module, ['notices', 'events', 'blogs', 'hero_slides', 'social_links']);
+                return in_array($module, ['notices', 'events', 'blogs', 'hero_slides', 'social_links', 'feedbacks']);
             case 'admission_officer':
                 return in_array($module, ['admissions', 'faculty']);
             case 'accountant':
