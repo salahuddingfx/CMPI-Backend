@@ -13,7 +13,7 @@ class EventController extends Controller
 {
     public function index()
     {
-        return InstituteEvent::orderByDesc('date')->get();
+        return InstituteEvent::orderByDesc('date')->paginate(15);
     }
 
     public function show(InstituteEvent $event)
