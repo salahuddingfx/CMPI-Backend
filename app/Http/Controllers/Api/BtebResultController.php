@@ -16,15 +16,29 @@ class BtebResultController extends Controller
     public function search(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'roll' => 'required|string',
+            'roll' => 'nullable|string',
+            'center_code' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Roll number is required'], 422);
+            return response()->json(['message' => 'Invalid query parameters'], 422);
         }
 
-        $roll = $request->query('roll');
-        $results = BtebResult::where('roll', $roll)
+        if (!$request->filled('roll') && !$request->filled('center_code')) {
+            return response()->json(['message' => 'Roll number or Center code is required'], 422);
+        }
+
+        $query = BtebResult::query();
+
+        if ($request->filled('roll')) {
+            $query->where('roll', $request->query('roll'));
+        }
+
+        if ($request->filled('center_code')) {
+            $query->where('center_code', $request->query('center_code'));
+        }
+
+        $results = $query->orderBy('roll')
             ->orderBy('semester')
             ->get();
 
