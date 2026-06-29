@@ -91,6 +91,9 @@ Route::get('/academic-calendar/{id}', [AcademicCalendarController::class, 'show'
 Route::get('/class-routines/{routine}/download', [ClassRoutineController::class, 'download']);
 Route::get('/admin-messages', [AdminMessageController::class, 'index']);
 
+// Student Verification (public)
+Route::get('/verify-student/{studentId}', [StudentController::class, 'verifyPublic']);
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
