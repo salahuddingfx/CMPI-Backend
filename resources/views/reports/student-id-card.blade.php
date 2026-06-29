@@ -146,7 +146,7 @@
             padding-right: 5px;
         }
         .blood-group-val {
-            color: #f87171 !important; /* red-400 */
+            color: #facc15 !important; /* yellow-400 */
             font-weight: bold;
         }
         .accent-footer-bar {
@@ -339,11 +339,18 @@
                         </tr>
                     </table>
 
+                    @php
+                        $startYear = date('Y');
+                        if (preg_match('/(\d{4})/', $user->session, $matches)) {
+                            $startYear = intval($matches[1]);
+                        }
+                        $expiryYear = $startYear + 4;
+                    @endphp
                     <table class="grid-table" style="margin-top: 5px;">
                         <tr>
                             <td class="grid-cell-half">
-                                <p class="detail-label">Semester</p>
-                                <p class="detail-value">{{ $user->semester ?: 'N/A' }}</p>
+                                <p class="detail-label">Expiry Date</p>
+                                <p class="detail-value detail-value-mono">{{ $expiryYear }}</p>
                             </td>
                             <td class="grid-cell-half">
                                 <p class="detail-label">Blood Group</p>
