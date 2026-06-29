@@ -9,6 +9,7 @@ use App\Models\CourseResult;
 use App\Models\Bill;
 use App\Models\Email;
 use Illuminate\Http\Request;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class StudentController extends Controller
 {
@@ -344,5 +345,59 @@ class StudentController extends Controller
             'avatar' => $user->avatar,
             'verified_at' => now()->toIso8601String(),
         ]);
+    }
+
+    public function downloadIdCard(Request $request)
+    {
+        $user = $request->user();
+
+        // Get CMPI logo and base64-encode it
+        $logoPath = base_path('../client/public/CMPI.png');
+        $logoSrc = '';
+        if (file_exists($logoPath)) {
+            $logoData = base64_encode(file_get_contents($logoPath));
+            $logoSrc = 'data:image/png;base64,' . $logoData;
+        }
+
+        // Get avatar and base64-encode it
+        $avatarSrc = '';
+        if ($user->avatar) {
+            $urlPath = parse_url($user->avatar, PHP_URL_PATH);
+            $avatarPath = null;
+            if (str_starts_with($urlPath, '/storage/')) {
+                $avatarPath = public_path(substr($urlPath, 1));
+            } else {
+                $avatarPath = public_path($urlPath);
+            }
+
+            if ($avatarPath && file_exists($avatarPath)) {
+                $avatarData = base64_encode(file_get_contents($avatarPath));
+                $avatarMime = mime_content_type($avatarPath) ?: 'image/png';
+                $avatarSrc = 'data:' . $avatarMime . ';base64,' . $avatarData;
+            }
+        }
+
+        // Get QR code base64-encoded
+        $verificationUrl = url("/verify-student/{$user->student_id}");
+        $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($verificationUrl);
+        $qrSrc = $qrUrl;
+        try {
+            // Fetch remote QR code via curl/file_get_contents
+            $qrData = @file_get_contents($qrUrl);
+            if ($qrData) {
+                $qrSrc = 'data:image/png;base64,' . base64_encode($qrData);
+            }
+        } catch (\Exception $e) {
+            // Fallback to QR server URL directly
+        }
+
+        $pdf = Pdf::loadView('reports.student-id-card', [
+            'user' => $user,
+            'logoSrc' => $logoSrc,
+            'avatarSrc' => $avatarSrc,
+            'qrSrc' => $qrSrc,
+        ]);
+
+        return $pdf->download("student-id-card-{$user->student_id}.pdf");
     }
 }

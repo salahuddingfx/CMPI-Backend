@@ -105,6 +105,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/bills', [StudentController::class, 'bills']);
     Route::get('/dashboard/profile', [StudentController::class, 'profile']);
     Route::put('/dashboard/profile', [StudentController::class, 'updateProfile']);
+    Route::get('/dashboard/id-card/download', [StudentController::class, 'downloadIdCard']);
     Route::get('/dashboard/emails', [StudentController::class, 'emails']);
     Route::get('/dashboard/emails/{id}/body', [StudentController::class, 'emailBody']);
 
