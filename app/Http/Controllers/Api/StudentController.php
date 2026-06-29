@@ -392,7 +392,7 @@ class StudentController extends Controller
         }
 
         // Get Principal signature and base64-encode it
-        $sigPath = public_path('Principal_Signature.png');
+        $sigPath = public_path('Principal_Signature_White.png');
         $sigSrc = '';
         if (file_exists($sigPath)) {
             $sigData = base64_encode(file_get_contents($sigPath));
