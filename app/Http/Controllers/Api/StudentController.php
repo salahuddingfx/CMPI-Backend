@@ -16,10 +16,16 @@ class StudentController extends Controller
     {
         $user = $request->user();
 
+        $boardResults = collect();
+        if ($user->board_roll) {
+            $boardResults = \App\Models\BtebResult::where('roll', $user->board_roll)->get();
+        }
+
         return [
             'user' => $user,
             'courses' => $user->courses,
             'results' => $user->courseResults,
+            'board_results' => $boardResults,
             'bills' => $user->bills,
         ];
     }
@@ -31,7 +37,18 @@ class StudentController extends Controller
 
     public function results(Request $request)
     {
-        return $request->user()->courseResults;
+        $user = $request->user();
+        $courseResults = $user->courseResults;
+        
+        $boardResults = collect();
+        if ($user->board_roll) {
+            $boardResults = \App\Models\BtebResult::where('roll', $user->board_roll)->get();
+        }
+
+        return response()->json([
+            'course_results' => $courseResults,
+            'board_results' => $boardResults,
+        ]);
     }
 
     public function bills(Request $request)
@@ -55,6 +72,12 @@ class StudentController extends Controller
             'blood_group' => 'sometimes|string|nullable',
             'address' => 'sometimes|string',
             'avatar' => 'nullable|string',
+            'board_roll' => 'sometimes|string|nullable',
+            'reg_no' => 'sometimes|string|nullable',
+            'student_id' => 'sometimes|string|nullable',
+            'department' => 'sometimes|string|nullable',
+            'semester' => 'sometimes|string|nullable',
+            'session' => 'sometimes|string|nullable',
         ]);
 
         $user->update($data);
@@ -140,6 +163,8 @@ class StudentController extends Controller
             'password' => 'required|string|min:6',
             'department' => 'nullable|string',
             'student_id' => 'nullable|string|unique:users,student_id',
+            'board_roll' => 'nullable|string',
+            'reg_no' => 'nullable|string',
             'semester' => 'nullable|string',
             'session' => 'nullable|string',
             'phone' => 'nullable|string',
@@ -176,6 +201,8 @@ class StudentController extends Controller
             'password' => 'nullable|string|min:6',
             'department' => 'nullable|string',
             'student_id' => 'nullable|string|unique:users,student_id,' . $user->id,
+            'board_roll' => 'nullable|string',
+            'reg_no' => 'nullable|string',
             'semester' => 'nullable|string',
             'session' => 'nullable|string',
             'phone' => 'nullable|string',
@@ -273,6 +300,8 @@ class StudentController extends Controller
                 'email' => $email,
                 'password' => \Illuminate\Support\Facades\Hash::make($data['password'] ?? \Illuminate\Support\Str::random(16)),
                 'student_id' => $studentId,
+                'board_roll' => $data['board_roll'] ?? null,
+                'reg_no' => $data['reg_no'] ?? null,
                 'department' => $data['department'] ?? null,
                 'semester' => $data['semester'] ?? '1st',
                 'session' => $data['session'] ?? ($year . '-' . ($year + 1)),
@@ -289,7 +318,31 @@ class StudentController extends Controller
             'message' => "Import complete: {$created} created, {$skipped} skipped",
             'created' => $created,
             'skipped' => $skipped,
-            'errors' => $errors,
+        ]);
+    }
+
+    public function verifyPublic($studentId)
+    {
+        $user = User::where('student_id', $studentId)
+            ->where('role', 'student')
+            ->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Student not found.'], 404);
+        }
+
+        return response()->json([
+            'name' => $user->name,
+            'student_id' => $user->student_id,
+            'board_roll' => $user->board_roll,
+            'reg_no' => $user->reg_no,
+            'department' => $user->department,
+            'semester' => $user->semester,
+            'session' => $user->session,
+            'blood_group' => $user->blood_group,
+            'status' => $user->status,
+            'avatar' => $user->avatar,
+            'verified_at' => now()->toIso8601String(),
         ]);
     }
 }
