@@ -9,5 +9,6 @@ class Institute extends Model
     protected $fillable = [
         'name', 'short_name', 'tagline', 'address', 'phone',
         'email', 'website', 'logo', 'eiin', 'established',
+        'bkash_number', 'nagad_number',
     ];
 }
