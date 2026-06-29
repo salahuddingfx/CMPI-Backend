@@ -352,7 +352,7 @@ class StudentController extends Controller
         $user = $request->user();
 
         // Get CMPI logo and base64-encode it
-        $logoPath = base_path('../client/public/CMPI.png');
+        $logoPath = public_path('CMPI.png');
         $logoSrc = '';
         if (file_exists($logoPath)) {
             $logoData = base64_encode(file_get_contents($logoPath));

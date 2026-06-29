@@ -13,12 +13,12 @@
             margin: 40px auto;
             padding: 0;
             background-color: #ffffff;
-            width: 480px;
+            width: 3.625in;
         }
         .card-container {
-            width: 480px;
-            height: 300px;
-            border-radius: 15px;
+            width: 3.625in;
+            height: 2.375in;
+            border-radius: 12px;
             overflow: hidden;
             position: relative;
             background-color: #022c22;
@@ -34,30 +34,30 @@
             border-bottom: 1px solid rgba(234, 179, 8, 0.3);
         }
         .banner-cell {
-            padding: 10px 15px;
+            padding: 0.125in 0.15in;
         }
         .banner-logo {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             vertical-align: middle;
         }
         .banner-text {
-            padding-left: 10px;
+            padding-left: 8px;
             text-align: left;
             vertical-align: middle;
         }
         .banner-title {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             color: #facc15; /* yellow-400 */
             margin: 0;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
             text-transform: uppercase;
         }
         .banner-subtitle {
-            font-size: 8px;
+            font-size: 7px;
             color: #6ee7b7; /* emerald-300 */
-            margin: 2px 0 0 0;
+            margin: 1px 0 0 0;
             font-weight: 600;
         }
         .content-table {
@@ -65,68 +65,68 @@
             border-collapse: collapse;
         }
         .content-cell {
-            padding: 15px;
+            padding: 0.125in 0.15in;
         }
         .photo-cell {
-            width: 100px;
+            width: 1.0in;
             text-align: center;
             vertical-align: top;
         }
         .photo-box {
-            width: 90px;
-            height: 90px;
+            width: 0.85in;
+            height: 0.85in;
             border: 2px solid rgba(234, 179, 8, 0.5);
             background-color: #022c22;
             overflow: hidden;
-            margin-bottom: 8px;
-            border-radius: 8px;
+            margin-bottom: 6px;
+            border-radius: 6px;
         }
         .student-photo {
-            width: 90px;
-            height: 90px;
+            width: 0.85in;
+            height: 0.85in;
         }
         .no-photo-placeholder {
-            width: 90px;
-            height: 90px;
-            line-height: 90px;
+            width: 0.85in;
+            height: 0.85in;
+            line-height: 0.85in;
             background-color: #064e3b;
             color: #6ee7b7;
-            font-size: 36px;
+            font-size: 32px;
             text-align: center;
             font-weight: bold;
         }
         .badge-container {
             text-align: center;
-            margin-top: 5px;
+            margin-top: 3px;
         }
         .badge {
             background-color: rgba(234, 179, 8, 0.2);
             border: 1px solid rgba(234, 179, 8, 0.3);
             color: #facc15;
-            font-size: 8px;
+            font-size: 7px;
             font-weight: bold;
-            padding: 2px 8px;
-            border-radius: 4px;
-            letter-spacing: 1px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
             display: inline-block;
         }
         .details-cell {
             vertical-align: top;
-            padding-left: 15px;
+            padding-left: 10px;
         }
         .detail-label {
-            font-size: 7px;
+            font-size: 6px;
             color: #34d399; /* emerald-400 */
             text-transform: uppercase;
             font-weight: bold;
             margin: 0;
         }
         .detail-value {
-            font-size: 11px;
+            font-size: 9px;
             font-weight: bold;
             color: #ffffff;
-            margin: 0 0 5px 0;
+            margin: 0 0 4px 0;
         }
         .detail-value-mono {
             font-family: 'Courier New', Courier, monospace;
@@ -151,7 +151,7 @@
         }
         .accent-footer-bar {
             width: 100%;
-            height: 6px;
+            height: 5px;
             background-color: #10b981; /* emerald-500 */
             position: absolute;
             bottom: 0;
@@ -162,58 +162,58 @@
         .back-banner {
             background-color: #022c22;
             text-align: center;
-            padding: 8px 0;
+            padding: 6px 0;
             border-bottom: 1px solid rgba(234, 179, 8, 0.3);
         }
         .back-banner-title {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
             color: #facc15;
-            letter-spacing: 2px;
+            letter-spacing: 1.5px;
             margin: 0;
             text-transform: uppercase;
         }
         .back-content {
-            padding: 15px;
+            padding: 0.125in 0.15in;
         }
         .instructions-title {
-            font-size: 10px;
+            font-size: 8px;
             font-weight: bold;
             color: #ffffff;
             border-bottom: 1px solid #064e3b;
-            padding-bottom: 3px;
-            margin-bottom: 6px;
-            letter-spacing: 1px;
+            padding-bottom: 2px;
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
             text-transform: uppercase;
         }
         .instructions-list {
             margin: 0;
-            padding-left: 15px;
-            font-size: 8px;
+            padding-left: 12px;
+            font-size: 7px;
             color: #a7f3d0; /* emerald-200 */
-            line-height: 1.3;
+            line-height: 1.25;
         }
         .instructions-list li {
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
         .back-footer-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15px;
+            margin-top: 10px;
             border-top: 1px solid rgba(6, 78, 59, 0.8);
         }
         .back-footer-cell {
-            padding-top: 8px;
+            padding-top: 6px;
         }
         .footer-contact {
             width: 40%;
-            font-size: 7px;
+            font-size: 6px;
             color: #34d399;
             font-family: monospace;
             vertical-align: middle;
         }
         .footer-contact p {
-            margin: 0 0 2px 0;
+            margin: 0 0 1px 0;
         }
         .footer-qr {
             width: 25%;
@@ -222,21 +222,21 @@
         }
         .qr-box {
             background-color: #ffffff;
-            padding: 3px;
-            border-radius: 4px;
+            padding: 2px;
+            border-radius: 3px;
             display: inline-block;
             border: 1px solid #064e3b;
         }
         .qr-img {
-            width: 45px;
-            height: 45px;
+            width: 36px;
+            height: 36px;
             display: block;
         }
         .qr-label {
-            font-size: 5px;
+            font-size: 4px;
             color: #022c22;
             font-weight: bold;
-            margin-top: 2px;
+            margin-top: 1px;
             text-transform: uppercase;
         }
         .footer-sig {
@@ -245,26 +245,27 @@
             vertical-align: middle;
         }
         .sig-text {
-            font-family: 'Georgia', serif;
+            font-family: 'Helvetica', 'Arial', sans-serif;
             font-style: italic;
-            font-size: 11px;
+            font-weight: bold;
+            font-size: 9px;
             color: #facc15;
             margin-bottom: 2px;
         }
         .sig-line {
             border-top: 1px solid #064e3b;
-            width: 80px;
+            width: 70px;
             margin: 0 auto;
-            padding-top: 2px;
+            padding-top: 1px;
         }
         .sig-name {
-            font-size: 7px;
+            font-size: 6px;
             font-weight: bold;
             color: #ffffff;
             margin: 0;
         }
         .sig-title {
-            font-size: 6px;
+            font-size: 5px;
             color: #34d399;
             margin: 0;
         }
