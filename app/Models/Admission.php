@@ -10,6 +10,7 @@ class Admission extends Model
         'application_id', 'name', 'email', 'phone', 'department',
         'session', 'ssc_gpa', 'hsc_gpa', 'father_name', 'mother_name',
         'address', 'blood_group', 'documents', 'status',
+        'payment_method', 'txn_id', 'payment_status',
     ];
 
     protected $casts = [
