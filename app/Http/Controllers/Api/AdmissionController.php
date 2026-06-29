@@ -97,6 +97,9 @@ class AdmissionController extends Controller
             'payment_method' => $admission->payment_method,
             'txn_id' => $admission->txn_id,
             'payment_status' => $admission->payment_status,
+            'admission_fee_amount' => $admission->admission_fee_amount,
+            'admission_fee_status' => $admission->admission_fee_status,
+            'board_confirmation' => $admission->board_confirmation,
             'created_at' => $admission->created_at,
             'documents' => $admission->documents ? array_keys($admission->documents) : [],
         ]);
@@ -132,6 +135,9 @@ class AdmissionController extends Controller
         $request->validate([
             'status' => 'required|string|in:Pending,Approved,Rejected',
             'payment_status' => 'nullable|string|in:unpaid,paid,pending_verification',
+            'admission_fee_amount' => 'nullable|numeric',
+            'admission_fee_status' => 'nullable|string|in:unpaid,paid,pending_verification',
+            'board_confirmation' => 'nullable|string|in:pending,confirmed',
             'reason' => 'nullable|string',
         ]);
 
@@ -139,6 +145,15 @@ class AdmissionController extends Controller
         $admission->status = $newStatus;
         if ($request->has('payment_status')) {
             $admission->payment_status = $request->payment_status;
+        }
+        if ($request->has('admission_fee_amount')) {
+            $admission->admission_fee_amount = $request->admission_fee_amount;
+        }
+        if ($request->has('admission_fee_status')) {
+            $admission->admission_fee_status = $request->admission_fee_status;
+        }
+        if ($request->has('board_confirmation')) {
+            $admission->board_confirmation = $request->board_confirmation;
         }
         $admission->save();
 
