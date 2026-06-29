@@ -40,6 +40,7 @@ class AdmissionController extends Controller
             'blood_group' => 'nullable|string',
             'payment_method' => 'required|string',
             'txn_id' => 'required|string',
+            'sender_number' => 'required|string',
         ]);
 
         $data['application_id'] = 'CMPI-ADM-' . str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
@@ -97,6 +98,7 @@ class AdmissionController extends Controller
             'payment_method' => $admission->payment_method,
             'txn_id' => $admission->txn_id,
             'payment_status' => $admission->payment_status,
+            'sender_number' => $admission->sender_number,
             'admission_fee_amount' => $admission->admission_fee_amount,
             'admission_fee_status' => $admission->admission_fee_status,
             'board_confirmation' => $admission->board_confirmation,
