@@ -38,6 +38,8 @@ class AdmissionController extends Controller
             'mother_name' => 'required|string',
             'address' => 'required|string',
             'blood_group' => 'nullable|string',
+            'payment_method' => 'required|string',
+            'txn_id' => 'required|string',
         ]);
 
         $data['application_id'] = 'CMPI-ADM-' . str_pad(mt_rand(1, 999999), 6, '0', STR_PAD_LEFT);
@@ -92,6 +94,9 @@ class AdmissionController extends Controller
             'department' => $admission->department,
             'session' => $admission->session,
             'status' => $admission->status,
+            'payment_method' => $admission->payment_method,
+            'txn_id' => $admission->txn_id,
+            'payment_status' => $admission->payment_status,
             'created_at' => $admission->created_at,
             'documents' => $admission->documents ? array_keys($admission->documents) : [],
         ]);
@@ -126,11 +131,15 @@ class AdmissionController extends Controller
 
         $request->validate([
             'status' => 'required|string|in:Pending,Approved,Rejected',
+            'payment_status' => 'nullable|string|in:unpaid,paid,pending_verification',
             'reason' => 'nullable|string',
         ]);
 
         $newStatus = $request->status;
         $admission->status = $newStatus;
+        if ($request->has('payment_status')) {
+            $admission->payment_status = $request->payment_status;
+        }
         $admission->save();
 
         if (strtolower($newStatus) === 'approved') {
