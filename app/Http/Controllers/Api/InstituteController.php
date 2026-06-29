@@ -66,6 +66,8 @@ class InstituteController extends Controller
             'logo' => 'nullable|string|max:500',
             'eiin' => 'nullable|string|max:50',
             'established' => 'nullable|string|max:10',
+            'bkash_number' => 'nullable|string|max:50',
+            'nagad_number' => 'nullable|string|max:50',
         ]);
 
         $institute = Institute::firstOrCreate(['id' => 1]);
