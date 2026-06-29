@@ -197,9 +197,11 @@
             margin-bottom: 3px;
         }
         .back-footer-table {
-            width: 100%;
+            width: 3.325in; /* 3.625in card width - 0.15in * 2 horizontal padding */
             border-collapse: collapse;
-            margin-top: 10px;
+            position: absolute;
+            top: 1.62in;
+            left: 0.15in;
             border-top: 1px solid rgba(6, 78, 59, 0.8);
         }
         .back-footer-cell {
@@ -210,7 +212,8 @@
             font-size: 6px;
             color: #34d399;
             font-family: monospace;
-            vertical-align: middle;
+            vertical-align: bottom;
+            padding-bottom: 4px;
         }
         .footer-contact p {
             margin: 0 0 1px 0;
@@ -218,7 +221,8 @@
         .footer-qr {
             width: 25%;
             text-align: center;
-            vertical-align: middle;
+            vertical-align: bottom;
+            padding-bottom: 4px;
         }
         .qr-box {
             background-color: #ffffff;
@@ -242,7 +246,8 @@
         .footer-sig {
             width: 35%;
             text-align: center;
-            vertical-align: middle;
+            vertical-align: bottom;
+            padding-bottom: 4px;
         }
         .sig-text {
             font-family: 'Helvetica', 'Arial', sans-serif;
@@ -253,10 +258,10 @@
             margin-bottom: 2px;
         }
         .sig-line {
-            border-top: 1px solid #064e3b;
+            border-top: 1px solid #10b981; /* emerald-500 line for clean visibility */
             width: 70px;
             margin: 0 auto;
-            padding-top: 1px;
+            padding-top: 4px;
         }
         .sig-name {
             font-size: 6px;
@@ -381,29 +386,33 @@
                 <li>The holder must wear and display this card visibly on campus at all times.</li>
                 <li>If found, please return to the institute administrative office.</li>
             </ul>
-
-            <!-- Footer Details -->
-            <table class="back-footer-table">
-                <tr>
-                    <td class="back-footer-cell footer-contact">
-                        <p>Emergency: +880 1888-000000</p>
-                        <p>Email: admin@cmpi.edu.bd</p>
-                    </td>
-                    <td class="back-footer-cell footer-qr">
-                        <div class="qr-box">
-                            <img src="{{ $qrSrc }}" class="qr-img" alt="QR" />
-                        </div>
-                    </td>
-                    <td class="back-footer-cell footer-sig">
-                        <div class="sig-text">DidarUllah</div>
-                        <div class="sig-line">
-                            <p class="sig-name">Ln. Md. Didar Ullah</p>
-                            <p class="sig-title">Principal</p>
-                        </div>
-                    </td>
-                </tr>
-            </table>
         </div>
+
+        <!-- Footer Details -->
+        <table class="back-footer-table">
+            <tr>
+                <td class="back-footer-cell footer-contact">
+                    <p>Emergency: +880 1888-000000</p>
+                    <p>Email: admin@cmpi.edu.bd</p>
+                </td>
+                <td class="back-footer-cell footer-qr">
+                    <div class="qr-box">
+                        <img src="{{ $qrSrc }}" class="qr-img" alt="QR" />
+                    </div>
+                </td>
+                <td class="back-footer-cell footer-sig">
+                    @if($sigSrc)
+                        <img src="{{ $sigSrc }}" style="height: 18px; width: auto; max-width: 60px; display: block; margin: 0 auto 3px auto; opacity: 0.9;" alt="Signature" />
+                    @else
+                        <div class="sig-text">DidarUllah</div>
+                    @endif
+                    <div class="sig-line">
+                        <p class="sig-name">Ln. Md. Didar Ullah</p>
+                        <p class="sig-title">Principal</p>
+                    </div>
+                </td>
+            </tr>
+        </table>
 
         <!-- Footer Accent -->
         <div class="accent-footer-bar"></div>

@@ -391,11 +391,20 @@ class StudentController extends Controller
             // Fallback to QR server URL directly
         }
 
+        // Get Principal signature and base64-encode it
+        $sigPath = public_path('Principal_Signature.png');
+        $sigSrc = '';
+        if (file_exists($sigPath)) {
+            $sigData = base64_encode(file_get_contents($sigPath));
+            $sigSrc = 'data:image/png;base64,' . $sigData;
+        }
+
         $pdf = Pdf::loadView('reports.student-id-card', [
             'user' => $user,
             'logoSrc' => $logoSrc,
             'avatarSrc' => $avatarSrc,
             'qrSrc' => $qrSrc,
+            'sigSrc' => $sigSrc,
         ]);
 
         return $pdf->download("student-id-card-{$user->student_id}.pdf");
