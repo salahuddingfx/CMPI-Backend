@@ -66,20 +66,26 @@ class StudentController extends Controller
     {
         $user = $request->user();
 
-        $data = $request->validate([
+        $rules = [
             'name' => 'sometimes|string',
-            'phone' => 'sometimes|string',
-            'guardian' => 'sometimes|string',
+            'phone' => 'sometimes|string|nullable',
+            'guardian' => 'sometimes|string|nullable',
             'blood_group' => 'sometimes|string|nullable',
-            'address' => 'sometimes|string',
+            'address' => 'sometimes|string|nullable',
             'avatar' => 'nullable|string',
-            'board_roll' => 'sometimes|string|nullable',
-            'reg_no' => 'sometimes|string|nullable',
-            'student_id' => 'sometimes|string|nullable',
-            'department' => 'sometimes|string|nullable',
-            'semester' => 'sometimes|string|nullable',
-            'session' => 'sometimes|string|nullable',
-        ]);
+        ];
+
+        // Only admins can update institutional student fields through this endpoint
+        if ($user->role === 'admin') {
+            $rules['board_roll'] = 'sometimes|string|nullable';
+            $rules['reg_no'] = 'sometimes|string|nullable';
+            $rules['student_id'] = 'sometimes|string|nullable';
+            $rules['department'] = 'sometimes|string|nullable';
+            $rules['semester'] = 'sometimes|string|nullable';
+            $rules['session'] = 'sometimes|string|nullable';
+        }
+
+        $data = $request->validate($rules);
 
         $user->update($data);
 
@@ -324,9 +330,7 @@ class StudentController extends Controller
 
     public function verifyPublic($studentId)
     {
-        $user = User::where('student_id', $studentId)
-            ->where('role', 'student')
-            ->first();
+        $user = User::where('student_id', $studentId)->first();
 
         if (!$user) {
             return response()->json(['message' => 'Student not found.'], 404);
