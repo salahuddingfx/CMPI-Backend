@@ -163,6 +163,8 @@ class ProcessBtebDriveImport implements ShouldQueue
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_TIMEOUT => 120,
                     CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
                 ]);
                 $handles[$fileId] = ['curl' => $ch, 'tmpFile' => $tmpFile];
                 curl_multi_add_handle($multi, $ch);
@@ -249,7 +251,7 @@ class ProcessBtebDriveImport implements ShouldQueue
         $lastBody = '';
 
         foreach ($steps as $url) {
-            $response = Http::timeout(90)->withHeaders(['User-Agent' => $ua])->get($url);
+            $response = Http::withoutVerifying()->timeout(90)->withHeaders(['User-Agent' => $ua])->get($url);
             if (!$response->successful()) continue;
 
             $body = $response->body();
@@ -276,7 +278,7 @@ class ProcessBtebDriveImport implements ShouldQueue
 
         // Old fallback
         $fallbackUrl = "https://drive.google.com/uc?export=download&id={$fileId}&confirm=no_antivirus";
-        $response = Http::timeout(90)->withHeaders(['User-Agent' => $ua])->get($fallbackUrl);
+        $response = Http::withoutVerifying()->timeout(90)->withHeaders(['User-Agent' => $ua])->get($fallbackUrl);
         if ($response->successful()) {
             $body = $response->body();
             if (strpos($body, '%PDF') === 0) {
@@ -459,7 +461,7 @@ class ProcessBtebDriveImport implements ShouldQueue
 
         // Method 1: Main folder URL
         try {
-            $response = Http::withHeaders($headers)->timeout(20)->get($folderUrl);
+            $response = Http::withoutVerifying()->withHeaders($headers)->timeout(20)->get($folderUrl);
             if ($response->successful()) {
                 $html = $response->body();
                 if ($this->htmlHasFileIds($html, $folderId)) {
@@ -473,7 +475,7 @@ class ProcessBtebDriveImport implements ShouldQueue
         // Method 2: Embedded view
         try {
             $embedUrl = "https://drive.google.com/embeddedfolderview?id={$folderId}#list";
-            $response = Http::withHeaders($headers)->timeout(20)->get($embedUrl);
+            $response = Http::withoutVerifying()->withHeaders($headers)->timeout(20)->get($embedUrl);
             if ($response->successful()) {
                 $html = $response->body();
                 if ($this->htmlHasFileIds($html, $folderId)) {
@@ -487,7 +489,7 @@ class ProcessBtebDriveImport implements ShouldQueue
         // Method 3: usp=sharing
         try {
             $altUrl = "https://drive.google.com/drive/folders/{$folderId}?usp=sharing";
-            $response = Http::withHeaders($headers)->timeout(20)->get($altUrl);
+            $response = Http::withoutVerifying()->withHeaders($headers)->timeout(20)->get($altUrl);
             if ($response->successful()) {
                 return $response->body();
             }
