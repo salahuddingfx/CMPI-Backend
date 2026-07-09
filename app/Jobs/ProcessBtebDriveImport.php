@@ -31,6 +31,7 @@ class ProcessBtebDriveImport implements ShouldQueue
 
     public function handle(): void
     {
+        ini_set('memory_limit', '512M');
         $this->importJob->update(['status' => 'processing']);
 
         try {
@@ -96,6 +97,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                     }
 
                     unset($fileResults, $pdf);
+                    gc_collect_cycles();
                 } catch (\Throwable $e) {
                     $errors[] = "Error processing {$fileName}: " . $e->getMessage();
                 }
