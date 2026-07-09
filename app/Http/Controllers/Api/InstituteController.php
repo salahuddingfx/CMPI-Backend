@@ -18,6 +18,7 @@ use App\Models\Faq;
 use App\Models\User;
 use App\Models\Bill;
 use App\Models\BtebResult;
+use App\Models\AdminMessage;
 use Illuminate\Http\Request;
 
 class InstituteController extends Controller
@@ -46,6 +47,7 @@ class InstituteController extends Controller
             'albums' => GalleryAlbum::all(),
             'resources' => StudentResource::all(),
             'faqs' => Faq::orderBy('sort_order')->get(),
+            'admin_messages' => AdminMessage::all(),
         ]);
     }
 
