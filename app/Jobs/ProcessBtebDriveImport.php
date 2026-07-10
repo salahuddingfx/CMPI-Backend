@@ -74,7 +74,15 @@ class ProcessBtebDriveImport implements ShouldQueue
             foreach ($downloaded as $fileId => $filePath) {
                 $fileName = basename($filePath);
                 try {
+                    $isCorrection = $this->isCorrectionFile($fileName) || $this->isCorrectionFolder($fileFolders[$fileId] ?? '');
                     $isRescrutiny = $this->isRescrutinyFile($fileName) || $this->isRescrutinyFolder($fileFolders[$fileId] ?? '');
+
+                    $examType = 'regular';
+                    if ($isCorrection) {
+                        $examType = 'correction';
+                    } elseif ($isRescrutiny) {
+                        $examType = 'rescrutiny';
+                    }
 
                     $meta = $this->parseFilenameForMetadata($fileName);
                     $semester = $this->semester ?? $meta['semester'] ?? '1st';
@@ -86,7 +94,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                     $fileResults = [];
                     foreach ($pdf->getPages() as $page) {
                         $pageText = $page->getText();
-                        $pageResults = $this->parsePdfText($pageText, $semester, $regulation, $holdingYear, $lastDetectedDept, $isRescrutiny);
+                        $pageResults = $this->parsePdfText($pageText, $semester, $regulation, $holdingYear, $lastDetectedDept, $examType);
                         if (!empty($pageResults)) {
                             $fileResults = array_merge($fileResults, $pageResults);
                         }
@@ -577,7 +585,10 @@ class ProcessBtebDriveImport implements ShouldQueue
     private function isRescrutinyFolder(string $folderName): bool
     {
         $lower = strtolower($folderName);
-        $keywords = ['rescrutiny', 'scrutiny', 'correction', 'challenge', 'recheck', 're-check', 're Scrutiny'];
+        $keywords = [
+            'rescrutiny', 'scrutiny', 'correction', 'challenge', 'recheck', 're-check', 're Scrutiny',
+            'resecuity', 'resecutiny', 'resecurity', 're-security', 're-scrutiny', 're-secutiny', 're-secuity'
+        ];
         foreach ($keywords as $kw) {
             if (str_contains($lower, $kw)) return true;
         }
@@ -587,14 +598,29 @@ class ProcessBtebDriveImport implements ShouldQueue
     private function isRescrutinyFile(string $fileName): bool
     {
         $lower = strtolower($fileName);
-        $keywords = ['rescrutiny', 'scrutiny', 'correction', 'challenge', 'recheck', 're-check'];
+        $keywords = [
+            'rescrutiny', 'scrutiny', 'correction', 'challenge', 'recheck', 're-check',
+            'resecuity', 'resecutiny', 'resecurity', 're-security', 're-scrutiny', 're-secutiny', 're-secuity'
+        ];
         foreach ($keywords as $kw) {
             if (str_contains($lower, $kw)) return true;
         }
         return false;
     }
 
-    private function parsePdfText(string $pageText, string $semester, string $regulation, string $holdingYear, &$lastDetectedDept, bool $isRescrutiny = false): array
+    private function isCorrectionFolder(string $folderName): bool
+    {
+        $lower = strtolower($folderName);
+        return str_contains($lower, 'correction');
+    }
+
+    private function isCorrectionFile(string $fileName): bool
+    {
+        $lower = strtolower($fileName);
+        return str_contains($lower, 'correction');
+    }
+
+    private function parsePdfText(string $pageText, string $semester, string $regulation, string $holdingYear, &$lastDetectedDept, string $examType = 'regular'): array
     {
         $results = [];
 
@@ -612,7 +638,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                 $regulation,
                 $holdingYear,
                 $lastDetectedDept,
-                $isRescrutiny
+                $examType
             );
             $results = array_merge($results, $sectionResults);
         }
@@ -665,7 +691,7 @@ class ProcessBtebDriveImport implements ShouldQueue
         string $regulation,
         string $holdingYear,
         &$lastDetectedDept,
-        bool $isRescrutiny
+        string $examType
     ): array {
         $results = [];
 
@@ -760,7 +786,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => "gpa{$semDigit}: {$gpaVal}",
-                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                'exam_type' => $examType,
                             ];
                         }
                     } else {
@@ -774,7 +800,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => $match[0],
-                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                'exam_type' => $examType,
                             ];
                     }
                 }
@@ -806,7 +832,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => "gpa{$semDigit}: {$gpaVal}",
-                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                'exam_type' => $examType,
                             ];
                         }
                     } else {
@@ -832,7 +858,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                             'status' => 'Passed',
                             'referred_subjects' => null,
                             'raw_text' => $match[0],
-                            'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                            'exam_type' => $examType,
                         ];
                     }
                 }
@@ -859,7 +885,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                 'raw_text' => $match[0],
-                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                'exam_type' => $examType,
                             ];
                         }
                         continue;
@@ -902,7 +928,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                     'status' => 'Referred',
                                     'referred_subjects' => !empty($semSubjects) ? $semSubjects : $allReferredSubjects,
                                     'raw_text' => "gpa{$semDigit}: ref, ref_sub: " . implode(', ', !empty($semSubjects) ? $semSubjects : $allReferredSubjects),
-                                    'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                    'exam_type' => $examType,
                                 ];
                             } else {
                                 $results[] = [
@@ -915,7 +941,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                     'status' => 'Passed',
                                     'referred_subjects' => null,
                                 'raw_text' => "gpa{$semDigit}: {$semValue}",
-                                'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                'exam_type' => $examType,
                             ];
                             }
                         }
@@ -953,7 +979,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                 'status' => 'Passed',
                                 'referred_subjects' => null,
                                     'raw_text' => $match[0],
-                                    'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                    'exam_type' => $examType,
                                 ];
                             } else {
                                 $results[] = [
@@ -966,7 +992,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                                     'status' => 'Referred',
                                     'referred_subjects' => $referredSubjects,
                                     'raw_text' => $match[0],
-                                    'exam_type' => $isRescrutiny ? 'rescrutiny' : 'regular',
+                                    'exam_type' => $examType,
                                 ];
                             }
                     }

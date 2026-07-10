@@ -65,7 +65,16 @@ class FastImportBtebResults extends Command
             $processed++;
 
             try {
-                $isRescrutiny = stripos($fileName, 'rescrutin') !== false || stripos($fileName, 'correction') !== false;
+                $isCorrection = stripos($fileName, 'correction') !== false;
+                $isRescrutiny = stripos($fileName, 'rescrutin') !== false || $isCorrection;
+
+                $examType = 'regular';
+                if ($isCorrection) {
+                    $examType = 'correction';
+                } elseif ($isRescrutiny) {
+                    $examType = 'rescrutiny';
+                }
+
                 $meta = $this->parseFilenameForMetadata($fileName);
                 $semester = $meta['semester'] ?? '1st';
                 $regulation = $meta['regulation'] ?? '2022';
@@ -75,7 +84,7 @@ class FastImportBtebResults extends Command
 
                 foreach ($pdf->getPages() as $page) {
                     $pageText = $page->getText();
-                    $pageResults = $this->parsePdfText($pageText, $semester, $regulation, $holdingYear, $lastDetectedDept, $isRescrutiny);
+                    $pageResults = $this->parsePdfText($pageText, $semester, $regulation, $holdingYear, $lastDetectedDept, $examType);
                     $fileResults = array_merge($fileResults, $pageResults);
                 }
 
@@ -281,7 +290,7 @@ class FastImportBtebResults extends Command
         return $result;
     }
 
-    private function parsePdfText(string $text, string $semester, string $regulation, string $holdingYear, string &$lastDetectedDept, bool $isRescrutiny): array
+    private function parsePdfText(string $text, string $semester, string $regulation, string $holdingYear, string &$lastDetectedDept, string $examType): array
     {
         $results = [];
         $sections = preg_split('/\b(\d{5})\s*[-–]\s*/', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
@@ -305,7 +314,7 @@ class FastImportBtebResults extends Command
                 $deptBlocks = $this->splitByDepartment($semText);
                 foreach ($deptBlocks as $dept => $deptText) {
                     $lastDetectedDept = $dept;
-                    $deptResults = $this->extractResultsFromText($deptText, $detectedSemester, $regulation, $holdingYear, $centerCode, $instituteName, $dept, $isRescrutiny);
+                    $deptResults = $this->extractResultsFromText($deptText, $detectedSemester, $regulation, $holdingYear, $centerCode, $instituteName, $dept, $examType);
                     $results = array_merge($results, $deptResults);
                 }
             }
@@ -402,10 +411,9 @@ class FastImportBtebResults extends Command
         return $map[$code] ?? null;
     }
 
-    private function extractResultsFromText(string $text, string $semester, string $regulation, string $holdingYear, string $centerCode, string $instituteName, string $dept, bool $isRescrutiny): array
+    private function extractResultsFromText(string $text, string $semester, string $regulation, string $holdingYear, string $centerCode, string $instituteName, string $dept, string $examType): array
     {
         $results = [];
-        $examType = $isRescrutiny ? 'rescrutiny' : 'regular';
 
         // Pattern 1: CGPA format
         if (preg_match_all('/\b(\d{6})\s+cgpa:\s*([2-4]\.\d{2})\s*\(\s*([\s\S]+?)\s*\)/i', $text, $m)) {
