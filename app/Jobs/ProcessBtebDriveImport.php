@@ -344,16 +344,18 @@ class ProcessBtebDriveImport implements ShouldQueue
         $html = $this->fetchFolderHtml($folderUrl, $folderId);
         if (!$html) return;
 
-        // Try to extract current folder name from breadcrumb
+        // Try to extract current folder name
         $currentFolderName = $parentFolderName;
-        if (preg_match('/data-tooltip="([^"]+)"/', $html, $fnameMatch)) {
-            $currentFolderName = $fnameMatch[1];
-        } elseif (preg_match('/<title>([^<]+)<\/title>/', $html, $titleMatch)) {
-            $title = trim($titleMatch[1]);
-            $title = preg_replace('/\s*-\s*Google Drive\s*$/i', '', $title);
-            if ($title !== '' && !in_array(strtolower($title), ['my drive', 'drive'])) {
+        if (preg_match('/<title>([^<]+)<\/title>/i', $html, $titleMatch)) {
+            $title = html_entity_decode(trim($titleMatch[1]), ENT_QUOTES | ENT_HTML5);
+            $title = preg_replace('/\s*-\s*Google\s*[a-zA-Z\x{0900}-\x{097F}\s]+$/u', '', $title);
+            $title = trim(preg_replace('/\s*-\s*Google Drive\s*$/i', '', $title));
+            if ($title !== '' && !in_array(strtolower($title), ['my drive', 'drive', 'google drive'])) {
                 $currentFolderName = $title;
             }
+        }
+        if ($currentFolderName === $parentFolderName && preg_match('/data-tooltip="([^"]+)"/', $html, $fnameMatch)) {
+            $currentFolderName = $fnameMatch[1];
         }
 
         // Parse _DRIVE_ivd to get file entries with name, type, and parent info
