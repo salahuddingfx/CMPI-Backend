@@ -348,8 +348,7 @@ class ProcessBtebDriveImport implements ShouldQueue
         $currentFolderName = $parentFolderName;
         if (preg_match('/<title>([^<]+)<\/title>/i', $html, $titleMatch)) {
             $title = html_entity_decode(trim($titleMatch[1]), ENT_QUOTES | ENT_HTML5);
-            $title = preg_replace('/\s*-\s*Google\s*[a-zA-Z\x{0900}-\x{097F}\s]+$/u', '', $title);
-            $title = trim(preg_replace('/\s*-\s*Google Drive\s*$/i', '', $title));
+            $title = trim(preg_replace('/\s*-\s*Google\s*.*$/ui', '', $title));
             if ($title !== '' && !in_array(strtolower($title), ['my drive', 'drive', 'google drive'])) {
                 $currentFolderName = $title;
             }
