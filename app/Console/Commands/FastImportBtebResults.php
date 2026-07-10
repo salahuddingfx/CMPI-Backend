@@ -101,6 +101,7 @@ class FastImportBtebResults extends Command
                                         'roll' => $result['roll'],
                                         'semester' => $result['semester'],
                                         'regulation' => $result['regulation'],
+                                        'exam_type' => $result['exam_type'] ?? 'regular',
                                     ],
                                     [
                                         'center_code' => $result['center_code'] ?? null,
@@ -111,7 +112,6 @@ class FastImportBtebResults extends Command
                                         'status' => $result['status'],
                                         'referred_subjects' => $result['referred_subjects'],
                                         'raw_text' => $result['raw_text'],
-                                        'exam_type' => $result['exam_type'] ?? 'regular',
                                     ]
                                 );
                                 $savedCount++;
