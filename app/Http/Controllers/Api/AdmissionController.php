@@ -135,7 +135,7 @@ class AdmissionController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|string|in:Pending,Approved,Rejected',
+            'status' => 'required|string|in:pending,approved,rejected',
             'payment_status' => 'nullable|string|in:unpaid,paid,pending_verification',
             'admission_fee_amount' => 'nullable|numeric',
             'admission_fee_status' => 'nullable|string|in:unpaid,paid,pending_verification',

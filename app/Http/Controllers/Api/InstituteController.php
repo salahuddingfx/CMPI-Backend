@@ -84,19 +84,24 @@ class InstituteController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $admissionsByMonth = \App\Models\Admission::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count")
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+        $dateFormat = $driver === 'sqlite'
+            ? "strftime('%Y-%m', created_at)"
+            : "DATE_FORMAT(created_at, '%Y-%m')";
+
+        $admissionsByMonth = \App\Models\Admission::selectRaw("{$dateFormat} as month, COUNT(*) as count")
             ->where('created_at', '>=', now()->subMonths(12))
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
-        $noticesByMonth = Notice::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count")
+        $noticesByMonth = Notice::selectRaw("{$dateFormat} as month, COUNT(*) as count")
             ->where('created_at', '>=', now()->subMonths(12))
             ->groupBy('month')
             ->orderBy('month')
             ->get();
 
-        $blogsByMonth = Blog::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count")
+        $blogsByMonth = Blog::selectRaw("{$dateFormat} as month, COUNT(*) as count")
             ->where('created_at', '>=', now()->subMonths(12))
             ->groupBy('month')
             ->orderBy('month')

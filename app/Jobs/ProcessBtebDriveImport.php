@@ -173,8 +173,8 @@ class ProcessBtebDriveImport implements ShouldQueue
                     CURLOPT_FOLLOWLOCATION => true,
                     CURLOPT_TIMEOUT => 120,
                     CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                    CURLOPT_SSL_VERIFYPEER => false,
-                    CURLOPT_SSL_VERIFYHOST => false,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                    CURLOPT_SSL_VERIFYHOST => 2,
                 ]);
                 $handles[$fileId] = ['curl' => $ch, 'tmpFile' => $tmpFile];
                 curl_multi_add_handle($multi, $ch);

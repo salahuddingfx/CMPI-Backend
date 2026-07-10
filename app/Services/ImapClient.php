@@ -46,8 +46,9 @@ class ImapClient
             // 1. Connect over SSL/TLS
             $context = stream_context_create([
                 'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                    'capture_peer_cert' => true,
                 ]
             ]);
             
@@ -169,8 +170,9 @@ class ImapClient
         try {
             $context = stream_context_create([
                 'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false,
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                    'capture_peer_cert' => true,
                 ]
             ]);
             $this->socket = @stream_socket_client("ssl://{$this->host}:{$this->port}", $errno, $errstr, 5, STREAM_CLIENT_CONNECT, $context);

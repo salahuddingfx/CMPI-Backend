@@ -155,7 +155,7 @@ class StudentController extends Controller
         if ($request->user()->role !== 'admin' || (!empty($request->user()->sub_role) && $request->user()->sub_role !== 'super_admin')) {
             return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
         }
-        return User::all();
+        return User::select(['id', 'name', 'email', 'role', 'sub_role', 'status', 'department', 'student_id', 'board_roll', 'semester', 'phone', 'admission_date', 'created_at'])->get();
     }
 
     public function storeUser(Request $request)
@@ -189,7 +189,7 @@ class StudentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->all();
+        $data = $validator->validated();
         $data['password'] = \Illuminate\Support\Facades\Hash::make($request->password);
 
         $user = User::create($data);
@@ -227,7 +227,7 @@ class StudentController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $request->all();
+        $data = $validator->validated();
         if (!empty($request->password)) {
             $data['password'] = \Illuminate\Support\Facades\Hash::make($request->password);
         } else {
@@ -339,14 +339,8 @@ class StudentController extends Controller
         return response()->json([
             'name' => $user->name,
             'student_id' => $user->student_id,
-            'board_roll' => $user->board_roll,
-            'reg_no' => $user->reg_no,
             'department' => $user->department,
-            'semester' => $user->semester,
-            'session' => $user->session,
-            'blood_group' => $user->blood_group,
-            'status' => $user->status,
-            'avatar' => $user->avatar,
+            'verified' => $user->status === 'active',
             'verified_at' => now()->toIso8601String(),
         ]);
     }

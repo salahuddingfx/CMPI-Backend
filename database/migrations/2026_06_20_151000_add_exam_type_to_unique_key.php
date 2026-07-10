@@ -42,6 +42,15 @@ return new class extends Migration
 
     private function indexExists(string $name): bool
     {
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'sqlite') {
+            try {
+                $indexes = DB::select("PRAGMA index_list('bteb_results')");
+                return collect($indexes)->contains(fn($i) => $i->name === $name);
+            } catch (\Exception $e) {
+                return false;
+            }
+        }
         return DB::select("
             SELECT COUNT(1) AS cnt FROM information_schema.STATISTICS
             WHERE table_schema = DATABASE() AND table_name = 'bteb_results' AND index_name = ?
