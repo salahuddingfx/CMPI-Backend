@@ -214,6 +214,7 @@ class ProcessBtebDriveImport implements ShouldQueue
                             'roll' => $result['roll'],
                             'semester' => $result['semester'],
                             'regulation' => $result['regulation'],
+                            'exam_type' => $result['exam_type'] ?? 'regular',
                         ],
                         [
                             'center_code' => $result['center_code'] ?? null,
@@ -224,7 +225,6 @@ class ProcessBtebDriveImport implements ShouldQueue
                             'status' => $result['status'],
                             'referred_subjects' => $result['referred_subjects'],
                             'raw_text' => $result['raw_text'],
-                            'exam_type' => $result['exam_type'] ?? 'regular',
                         ]
                     );
                     $saved++;
