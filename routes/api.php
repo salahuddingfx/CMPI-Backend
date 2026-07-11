@@ -103,6 +103,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/courses', [StudentController::class, 'courses']);
     Route::get('/dashboard/results', [StudentController::class, 'results']);
     Route::get('/dashboard/bills', [StudentController::class, 'bills']);
+    Route::get('/dashboard/bills/{bill}/receipt', [StudentController::class, 'downloadReceipt']);
     Route::get('/dashboard/profile', [StudentController::class, 'profile']);
     Route::put('/dashboard/profile', [StudentController::class, 'updateProfile']);
     Route::get('/dashboard/id-card/download', [StudentController::class, 'downloadIdCard']);
