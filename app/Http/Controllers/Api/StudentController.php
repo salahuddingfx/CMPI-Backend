@@ -407,4 +407,37 @@ class StudentController extends Controller
 
         return $pdf->download("student-id-card-{$user->student_id}.pdf");
     }
+
+    public function downloadReceipt(Request $request, Bill $bill)
+    {
+        $user = $request->user();
+
+        // Ensure this student owns the bill
+        if ($bill->user_id !== $user->id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        // Ensure the bill is paid
+        if ($bill->status !== 'paid') {
+            abort(400, 'Only paid bills can have receipts.');
+        }
+
+        // Get CMPI logo and base64-encode it
+        $logoPath = public_path('CMPI.png');
+        $logoSrc = '';
+        if (file_exists($logoPath)) {
+            $logoData = base64_encode(file_get_contents($logoPath));
+            $logoSrc = 'data:image/png;base64,' . $logoData;
+        }
+
+        // Load PDF using barryvdh/laravel-dompdf
+        $pdf = Pdf::loadView('reports.receipt', [
+            'user' => $user,
+            'bill' => $bill,
+            'logoSrc' => $logoSrc,
+            'downloaded_at' => now()->format('d M Y, h:i A'),
+        ]);
+
+        return $pdf->download("receipt-{$bill->id}.pdf");
+    }
 }
