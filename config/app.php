@@ -56,6 +56,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend Application URLs
+    |--------------------------------------------------------------------------
+    |
+    | Base URLs of the separate frontends that consume this API. These are
+    | surfaced on the server status page rendered at the application root.
+    |
+    */
+
+    'client_url' => env('CLIENT_URL', 'http://localhost:5173'),
+
+    'admin_url' => env('ADMIN_URL', 'http://localhost:5174'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
